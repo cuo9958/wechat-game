@@ -190,7 +190,12 @@ class util {
         };
     }
     getBoundaryToPoints(htBoundary) {
-        return [[htBoundary.left, htBoundary.top], [htBoundary.right, htBoundary.top], [htBoundary.right, htBoundary.bottom], [htBoundary.left, htBoundary.bottom]];
+        return [
+            [htBoundary.left, htBoundary.top],
+            [htBoundary.right, htBoundary.top],
+            [htBoundary.right, htBoundary.bottom],
+            [htBoundary.left, htBoundary.bottom]
+        ];
     }
     queryString() {
         var htResult = {};
@@ -296,6 +301,597 @@ class util {
     }
 }
 WGame.util = new util();
+/**
+ * 动画
+ */
+WGame.Effect = function (fEffect) {
+    var rxNumber = /^(\-?[0-9\.]+)(%|px|pt|em)?$/,
+        rxRGB = /^rgb\(([0-9]+)\s?,\s?([0-9]+)\s?,\s?([0-9]+)\)$/i,
+        rxHex = /^#([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})$/i,
+        rx3to6 = /^#([0-9A-F])([0-9A-F])([0-9A-F])$/i;
+
+    var getUnitAndValue = function (v) {
+        var nValue = v,
+            sUnit;
+
+        if (rxNumber.test(v)) {
+            nValue = parseFloat(v);
+            sUnit = RegExp.$2 || "";
+        } else if (rxRGB.test(v)) {
+            nValue = [parseInt(RegExp.$1, 10), parseInt(RegExp.$2, 10), parseInt(RegExp.$3, 10)];
+            sUnit = 'color';
+        } else if (rxHex.test(v = v.replace(rx3to6, '#$1$1$2$2$3$3'))) {
+            nValue = [parseInt(RegExp.$1, 16), parseInt(RegExp.$2, 16), parseInt(RegExp.$3, 16)];
+            sUnit = 'color';
+        }
+
+        return {
+            nValue: nValue,
+            sUnit: sUnit
+        };
+    };
+
+    return function (nStart, nEnd) {
+        var sUnit;
+        if (arguments.length > 1) {
+            nStart = getUnitAndValue(nStart);
+            nEnd = getUnitAndValue(nEnd);
+            sUnit = nEnd.sUnit;
+        } else {
+            nEnd = getUnitAndValue(nStart);
+            nStart = null;
+            sUnit = nEnd.sUnit;
+        }
+
+        if (nStart && nEnd && nStart.sUnit != nEnd.sUnit) {
+            throw new Error('unit error');
+        }
+
+        nStart = nStart && nStart.nValue;
+        nEnd = nEnd && nEnd.nValue;
+
+        var fReturn = function (p) {
+            var nValue = fEffect(p),
+                getResult = function (s, d) {
+                    return (d - s) * nValue + s + sUnit;
+                };
+
+            if (sUnit == 'color') {
+                var r = Math.max(0, Math.min(255, parseInt(getResult(nStart[0], nEnd[0]), 10))) << 16;
+                r |= Math.max(0, Math.min(255, parseInt(getResult(nStart[1], nEnd[1]), 10))) << 8;
+                r |= Math.max(0, Math.min(255, parseInt(getResult(nStart[2], nEnd[2]), 10)));
+
+                r = r.toString(16).toUpperCase();
+                for (var i = 0; 6 - r.length; i++) {
+                    r = '0' + r;
+                }
+
+                return '#' + r;
+            }
+            return getResult(nStart, nEnd);
+        };
+
+        if (nStart === null) {
+            fReturn.setStart = function (s) {
+                s = getUnitAndValue(s);
+
+                if (s.sUnit != sUnit) {
+                    throw new Error('unit eror');
+                }
+                nStart = s.nValue;
+            };
+        }
+        return fReturn;
+    };
+}
+WGame.Effect.linear = WGame.Effect(function (s) {
+    return s;
+});
+WGame.Effect.easeInSine = WGame.Effect(function (s) {
+    return (s == 1) ? 1 : -Math.cos(s * (Math.PI / 2)) + 1;
+});
+/**
+ * easeOutSine 
+ */
+WGame.Effect.easeOutSine = WGame.Effect(function (s) {
+    return Math.sin(s * (Math.PI / 2));
+});
+/**
+ * easeInOutSine 
+ */
+WGame.Effect.easeInOutSine = WGame.Effect(function (s) {
+    return (s < 0.5) ? WGame.Effect.easeInSine(0, 1)(2 * s) * 0.5 : WGame.Effect.easeOutSine(0, 1)((2 * s) - 1) * 0.5 + 0.5;
+});
+/**
+ * easeOutInSine 
+ */
+WGame.Effect.easeOutInSine = WGame.Effect(function (s) {
+    return (s < 0.5) ? WGame.Effect.easeOutSine(0, 1)(2 * s) * 0.5 : WGame.Effect.easeInSine(0, 1)((2 * s) - 1) * 0.5 + 0.5;
+});
+
+/**
+ * easeInQuad 
+ */
+WGame.Effect.easeInQuad = WGame.Effect(function (s) {
+    return s * s;
+});
+/**
+ * easeOutQuad 
+ */
+WGame.Effect.easeOutQuad = WGame.Effect(function (s) {
+    return -(s * (s - 2));
+});
+/**
+ * easeInOutQuad 
+ */
+WGame.Effect.easeInOutQuad = WGame.Effect(function (s) {
+    return (s < 0.5) ? WGame.Effect.easeInQuad(0, 1)(2 * s) * 0.5 : WGame.Effect.easeOutQuad(0, 1)((2 * s) - 1) * 0.5 + 0.5;
+});
+/**
+ * easeOutInQuad 
+ */
+WGame.Effect.easeOutInQuad = WGame.Effect(function (s) {
+    return (s < 0.5) ? WGame.Effect.easeOutQuad(0, 1)(2 * s) * 0.5 : WGame.Effect.easeInQuad(0, 1)((2 * s) - 1) * 0.5 + 0.5;
+});
+
+/**
+ * easeInCubic 
+ */
+WGame.Effect.easeInCubic = WGame.Effect(function (s) {
+    return Math.pow(s, 3);
+});
+/**
+ * easeOutCubic 
+ */
+WGame.Effect.easeOutCubic = WGame.Effect(function (s) {
+    return Math.pow((s - 1), 3) + 1;
+});
+/**
+ * easeInOutCubic 
+ */
+WGame.Effect.easeInOutCubic = WGame.Effect(function (s) {
+    return (s < 0.5) ? WGame.Effect.easeIn(0, 1)(2 * s) * 0.5 : WGame.Effect.easeOut(0, 1)((2 * s) - 1) * 0.5 + 0.5;
+});
+/**
+ * easeOutInCubic 
+ */
+WGame.Effect.easeOutInCubic = WGame.Effect(function (s) {
+    return (s < 0.5) ? WGame.Effect.easeOut(0, 1)(2 * s) * 0.5 : WGame.Effect.easeIn(0, 1)((2 * s) - 1) * 0.5 + 0.5;
+});
+
+/**
+ * easeInQuart 
+ */
+WGame.Effect.easeInQuart = WGame.Effect(function (s) {
+    return Math.pow(s, 4);
+});
+/**
+ * easeOutQuart 
+ */
+WGame.Effect.easeOutQuart = WGame.Effect(function (s) {
+    return -(Math.pow(s - 1, 4) - 1);
+});
+/**
+ * easeInOutQuart 
+ */
+WGame.Effect.easeInOutQuart = WGame.Effect(function (s) {
+    return (s < 0.5) ? WGame.Effect.easeInQuart(0, 1)(2 * s) * 0.5 : WGame.Effect.easeOutQuart(0, 1)((2 * s) - 1) * 0.5 + 0.5;
+});
+/**
+ * easeOutInQuart 
+ */
+WGame.Effect.easeOutInQuart = WGame.Effect(function (s) {
+    return (s < 0.5) ? WGame.Effect.easeOutQuart(0, 1)(2 * s) * 0.5 : WGame.Effect.easeInQuart(0, 1)((2 * s) - 1) * 0.5 + 0.5;
+});
+
+/**
+ * easeInQuint 
+ */
+WGame.Effect.easeInQuint = WGame.Effect(function (s) {
+    return Math.pow(s, 5);
+});
+/**
+ * easeOutQuint 
+ */
+WGame.Effect.easeOutQuint = WGame.Effect(function (s) {
+    return Math.pow(s - 1, 5) + 1;
+});
+/**
+ * easeInOutQuint 
+ */
+WGame.Effect.easeInOutQuint = WGame.Effect(function (s) {
+    return (s < 0.5) ? WGame.Effect.easeInQuint(0, 1)(2 * s) * 0.5 : WGame.Effect.easeOutQuint(0, 1)((2 * s) - 1) * 0.5 + 0.5;
+});
+/**
+ * easeOutInQuint 
+ */
+WGame.Effect.easeOutInQuint = WGame.Effect(function (s) {
+    return (s < 0.5) ? WGame.Effect.easeOutQuint(0, 1)(2 * s) * 0.5 : WGame.Effect.easeInQuint(0, 1)((2 * s) - 1) * 0.5 + 0.5;
+});
+
+/**
+ * easeInCircle 
+ */
+WGame.Effect.easeInCircle = WGame.Effect(function (s) {
+    return -(Math.sqrt(1 - (s * s)) - 1);
+});
+/**
+ * easeOutCircle 
+ */
+WGame.Effect.easeOutCircle = WGame.Effect(function (s) {
+    return Math.sqrt(1 - (s - 1) * (s - 1));
+});
+/**
+ * easeInOutCircle 
+ */
+WGame.Effect.easeInOutCircle = WGame.Effect(function (s) {
+    return (s < 0.5) ? WGame.Effect.easeInCircle(0, 1)(2 * s) * 0.5 : WGame.Effect.easeOutCircle(0, 1)((2 * s) - 1) * 0.5 + 0.5;
+});
+/**
+ * easeOutInCircle 
+ */
+WGame.Effect.easeOutInCircle = WGame.Effect(function (s) {
+    return (s < 0.5) ? WGame.Effect.easeOutCircle(0, 1)(2 * s) * 0.5 : WGame.Effect.easeInCircle(0, 1)((2 * s) - 1) * 0.5 + 0.5;
+});
+
+/**
+ * easeInBack 
+ */
+WGame.Effect.easeInBack = WGame.Effect(function (s) {
+    var n = 1.70158;
+    return (s == 1) ? 1 : (s / 1) * (s / 1) * ((1 + n) * s - n);
+});
+/**
+ * easeOutBack 
+ */
+WGame.Effect.easeOutBack = WGame.Effect(function (s) {
+    var n = 1.70158;
+    return (s === 0) ? 0 : (s = s / 1 - 1) * s * ((n + 1) * s + n) + 1;
+});
+/**
+ * easeInOutBack 
+ */
+WGame.Effect.easeInOutBack = WGame.Effect(function (s) {
+    return (s < 0.5) ? WGame.Effect.easeInBack(0, 1)(2 * s) * 0.5 : WGame.Effect.easeOutBack(0, 1)((2 * s) - 1) * 0.5 + 0.5;
+});
+
+/**
+ * easeInElastic 
+ */
+WGame.Effect.easeInElastic = WGame.Effect(function (s) {
+    var p = 0,
+        a = 0,
+        n;
+    if (s === 0) {
+        return 0;
+    }
+    if ((s /= 1) == 1) {
+        return 1;
+    }
+    if (!p) {
+        p = 0.3;
+    }
+    if (!a || a < 1) {
+        a = 1;
+        n = p / 4;
+    } else {
+        n = p / (2 * Math.PI) * Math.asin(1 / a);
+    }
+    return -(a * Math.pow(2, 10 * (s -= 1)) * Math.sin((s - 1) * (2 * Math.PI) / p));
+});
+
+/**
+ * easeOutElastic 
+ */
+WGame.Effect.easeOutElastic = WGame.Effect(function (s) {
+    var p = 0,
+        a = 0,
+        n;
+    if (s === 0) {
+        return 0;
+    }
+    if ((s /= 1) == 1) {
+        return 1;
+    }
+    if (!p) {
+        p = 0.3;
+    }
+    if (!a || a < 1) {
+        a = 1;
+        n = p / 4;
+    } else {
+        n = p / (2 * Math.PI) * Math.asin(1 / a);
+    }
+    return (a * Math.pow(2, -10 * s) * Math.sin((s - n) * (2 * Math.PI) / p) + 1);
+});
+/**
+ * easeInOutElastic 
+ */
+WGame.Effect.easeInOutElastic = WGame.Effect(function (s) {
+    var p = 0,
+        a = 0,
+        n;
+    if (s === 0) {
+        return 0;
+    }
+    if ((s /= 1 / 2) == 2) {
+        return 1;
+    }
+    if (!p) {
+        p = (0.3 * 1.5);
+    }
+    if (!a || a < 1) {
+        a = 1;
+        n = p / 4;
+    } else {
+        n = p / (2 * Math.PI) * Math.asin(1 / a);
+    }
+    if (s < 1) {
+        return -0.5 * (a * Math.pow(2, 10 * (s -= 1)) * Math.sin((s - n) * (2 * Math.PI) / p));
+    }
+    return a * Math.pow(2, -10 * (s -= 1)) * Math.sin((s - n) * (2 * Math.PI) / p) * 0.5 + 1;
+});
+
+/**
+ * easeOutBounce 
+ */
+WGame.Effect.easeOutBounce = WGame.Effect(function (s) {
+    if (s < (1 / 2.75)) {
+        return (7.5625 * s * s);
+    } else if (s < (2 / 2.75)) {
+        return (7.5625 * (s -= (1.5 / 2.75)) * s + 0.75);
+    } else if (s < (2.5 / 2.75)) {
+        return (7.5625 * (s -= (2.25 / 2.75)) * s + 0.9375);
+    } else {
+        return (7.5625 * (s -= (2.625 / 2.75)) * s + 0.984375);
+    }
+});
+/**
+ * easeInBounce 
+ */
+WGame.Effect.easeInBounce = WGame.Effect(function (s) {
+    return 1 - WGame.Effect.easeOutBounce(0, 1)(1 - s);
+});
+/**
+ * easeInOutBounce 
+ */
+WGame.Effect.easeInOutBounce = WGame.Effect(function (s) {
+    return (s < 0.5) ? WGame.Effect.easeInBounce(0, 1)(2 * s) * 0.5 : WGame.Effect.easeOutBounce(0, 1)((2 * s) - 1) * 0.5 + 0.5;
+});
+
+/**
+ * easeInExpo 
+ */
+WGame.Effect.easeInExpo = WGame.Effect(function (s) {
+    return (s === 0) ? 0 : Math.pow(2, 10 * (s - 1));
+});
+/**
+ * easeOutExpo 
+ */
+WGame.Effect.easeOutExpo = WGame.Effect(function (s) {
+    return (s == 1) ? 1 : -Math.pow(2, -10 * s / 1) + 1;
+});
+/**
+ * easeInOutExpo 
+ */
+WGame.Effect.easeInOutExpo = WGame.Effect(function (s) {
+    return (s < 0.5) ? WGame.Effect.easeInExpo(0, 1)(2 * s) * 0.5 : WGame.Effect.easeOutExpo(0, 1)((2 * s) - 1) * 0.5 + 0.5;
+});
+/**
+ * easeOutExpo 
+ */
+WGame.Effect.easeOutInExpo = WGame.Effect(function (s) {
+    return (s < 0.5) ? WGame.Effect.easeOutExpo(0, 1)(2 * s) * 0.5 : WGame.Effect.easeInExpo(0, 1)((2 * s) - 1) * 0.5 + 0.5;
+});
+
+/**
+ * Cubic-Bezier curve
+ * @param {Number} x1
+ * @param {Number} y1
+ * @param {Number} x2
+ * @param {Number} y2
+ * @see http://www.netzgesta.de/dev/cubic-bezier-timing-function.html
+ */
+WGame.Effect._cubicBezier = function (x1, y1, x2, y2) {
+    return function (t) {
+        var cx = 3.0 * x1,
+            bx = 3.0 * (x2 - x1) - cx,
+            ax = 1.0 - cx - bx,
+            cy = 3.0 * y1,
+            by = 3.0 * (y2 - y1) - cy,
+            ay = 1.0 - cy - by;
+
+        function sampleCurveX(t) {
+            return ((ax * t + bx) * t + cx) * t;
+        }
+
+        function sampleCurveY(t) {
+            return ((ay * t + by) * t + cy) * t;
+        }
+
+        function sampleCurveDerivativeX(t) {
+            return (3.0 * ax * t + 2.0 * bx) * t + cx;
+        }
+
+        function solveCurveX(x, epsilon) {
+            var t0, t1, t2, x2, d2, i;
+            for (t2 = x, i = 0; i < 8; i++) {
+                x2 = sampleCurveX(t2) - x;
+                if (Math.abs(x2) < epsilon) {
+                    return t2;
+                }
+                d2 = sampleCurveDerivativeX(t2);
+                if (Math.abs(d2) < 1e-6) {
+                    break;
+                }
+                t2 = t2 - x2 / d2;
+            }
+            t0 = 0.0;
+            t1 = 1.0;
+            t2 = x;
+            if (t2 < t0) {
+                return t0;
+            }
+            if (t2 > t1) {
+                return t1;
+            }
+            while (t0 < t1) {
+                x2 = sampleCurveX(t2);
+                if (Math.abs(x2 - x) < epsilon) {
+                    return t2;
+                }
+                if (x > x2) {
+                    t0 = t2;
+                } else {
+                    t1 = t2;
+                }
+                t2 = (t1 - t0) * 0.5 + t0;
+            }
+            return t2; // Failure.
+        }
+        return sampleCurveY(solveCurveX(t, 1 / 200));
+    };
+};
+
+/**
+ * Cubic-Bezier 
+ * @see http://en.wikipedia.org/wiki/B%C3%A9zier_curve
+ * @param {Number} x1 control point 1
+ * @param {Number} y1 control point 1
+ * @param {Number} x2 control point 2
+ * @param {Number} y2 control point 2
+ * @return {Function} 
+ */
+WGame.Effect.cubicBezier = function (x1, y1, x2, y2) {
+    return WGame.Effect(WGame.Effect._cubicBezier(x1, y1, x2, y2));
+};
+
+/**
+ * Cubic-Bezier 
+ * WGame.Effect.cubicBezier(0.25, 0.1, 0.25, 1);
+ * @see http://www.w3.org/TR/css3-transitions/#transition-timing-function_tag
+ */
+WGame.Effect.cubicEase = WGame.Effect.cubicBezier(0.25, 0.1, 0.25, 1);
+
+/**
+ * Cubic-Bezier 
+ * WGame.Effect.cubicBezier(0.42, 0, 1, 1);
+ * @see http://www.w3.org/TR/css3-transitions/#transition-timing-function_tag
+ */
+WGame.Effect.cubicEaseIn = WGame.Effect.cubicBezier(0.42, 0, 1, 1);
+
+/**
+ * Cubic-Bezier 
+ * WGame.Effect.cubicBezier(0, 0, 0.58, 1);
+ * @see http://www.w3.org/TR/css3-transitions/#transition-timing-function_tag
+ */
+WGame.Effect.cubicEaseOut = WGame.Effect.cubicBezier(0, 0, 0.58, 1);
+
+/**
+ * Cubic-Bezier 
+ * WGame.Effect.cubicBezier(0.42, 0, 0.58, 1);
+ * @see http://www.w3.org/TR/css3-transitions/#transition-timing-function_tag
+ */
+WGame.Effect.cubicEaseInOut = WGame.Effect.cubicBezier(0.42, 0, 0.58, 1);
+
+/**
+ * Cubic-Bezier 
+ * WGame.Effect.cubicBezier(0, 0.42, 1, 0.58);
+ */
+WGame.Effect.cubicEaseOutIn = WGame.Effect.cubicBezier(0, 0.42, 1, 0.58);
+
+/**
+ * overphase 
+ */
+WGame.Effect.overphase = WGame.Effect(function (s) {
+    s /= 0.652785;
+    return (Math.sqrt((2 - s) * s) + (0.1 * s)).toFixed(5);
+});
+
+/**
+ * sin 
+ */
+WGame.Effect.sinusoidal = WGame.Effect(function (s) {
+    return (-Math.cos(s * Math.PI) / 2) + 0.5;
+});
+
+/**
+ * mirror 
+ * sinusoidal 
+ */
+WGame.Effect.mirror = WGame.Effect(function (s) {
+    return (s < 0.5) ? WGame.Effect.sinusoidal(0, 1)(s * 2) : WGame.Effect.sinusoidal(0, 1)(1 - (s - 0.5) * 2);
+});
+
+/**
+ * nPulse
+ * @param {Number} nPulse 
+ * @return {Function} 
+ * @example
+var f = WGame.Effect.pulse(3); 
+var fEffect = f(0, 100);
+fEffect(0); => 0
+fEffect(1); => 100
+ */
+WGame.Effect.pulse = function (nPulse) {
+    return WGame.Effect(function (s) {
+        return (-Math.cos((s * (nPulse - 0.5) * 2) * Math.PI) / 2) + 0.5;
+    });
+};
+
+/**
+ * nPeriod
+ * @param {Number} nPeriod 
+ * @param {Number} nHeight 
+ * @return {Function}  
+ * @example
+var f = WGame.Effect.wave(3, 1); 
+var fEffect = f(0, 100);
+fEffect(0); => 0
+fEffect(1); => 0
+ */
+WGame.Effect.wave = function (nPeriod, nHeight) {
+    return WGame.Effect(function (s) {
+        return (nHeight || 1) * (Math.sin(nPeriod * (s * 360) * Math.PI / 180)).toFixed(5);
+    });
+};
+
+/**
+ * easeIn 
+ * easeInCubic 
+ * @see easeInCubic
+ */
+WGame.Effect.easeIn = WGame.Effect.easeInCubic;
+/**
+ * easeOut 
+ * easeOutCubic 
+ * @see easeOutCubic
+ */
+WGame.Effect.easeOut = WGame.Effect.easeOutCubic;
+/**
+ * easeInOut 
+ * easeInOutCubic 
+ * @see easeInOutCubic
+ */
+WGame.Effect.easeInOut = WGame.Effect.easeInOutCubic;
+/**
+ * easeOutIn 
+ * easeOutInCubic 
+ * @see easeOutInCubic
+ */
+WGame.Effect.easeOutIn = WGame.Effect.easeOutInCubic;
+/**
+ * bounce 
+ * easeOutBounce 
+ * @see easeOutBounce
+ */
+WGame.Effect.bounce = WGame.Effect.easeOutBounce;
+/**
+ * elastic 
+ * easeInElastic 
+ * @see easeInElastic
+ */
+WGame.Effect.elastic = WGame.Effect.easeInElastic;
 
 /**
  * 基础组件类
@@ -507,6 +1103,268 @@ class ComponentEvent {
     }
 }
 WGame.ComponentEvent = ComponentEvent;
+
+class DisplayObjectCanvas {
+    constructor(oDisplayObject) {
+        this._oDisplayObject = oDisplayObject;
+        this._bUseCache = false;
+        this._oDebugHitArea = null;
+        this._htEvent = {};
+        this._oLayer = null;
+        this._htInfo = this._oDisplayObject.get();
+        this._bIsRetinaDisplay = null;
+
+        if (this._htInfo.useCache) {
+            this.loadCache();
+        }
+    }
+    loadCache() {
+        if (!this._bUseCache) {
+            this._bUseCache = true;
+            this._elCache = wx.createCanvas();
+            this._elCache.width = this._htInfo.width;
+            this._elCache.height = this._htInfo.height;
+            this._oContextCache = this._elCache.getContext("2d");
+        }
+    }
+
+    /**
+     * @private
+     */
+    unloadCache() {
+        if (this._bUseCache) {
+            this._oContextCache = null;
+            this._elCache = null;
+            this._bUseCache = false;
+        }
+    }
+
+    /**
+     * @private
+     */
+    clearCache() {
+        if (this._bUseCache) {
+            this._oContextCache.clearRect(0, 0, this._elCache.width, this._elCache.height);
+            this._elCache.width = this._htInfo.width * (this._bIsRetinaDisplay ? 2 : 1);
+            this._elCache.height = this._htInfo.height * (this._bIsRetinaDisplay ? 2 : 1);
+        }
+    }
+
+
+    drawImage(oContext, sx, sy, sw, sh, dx, dy, dw, dh) {
+        var oSource = this._oDisplayObject.getImage();
+        var nImageWidth = this._oDisplayObject._nImageWidth; //TODO 임시
+        var nImageHeight = this._oDisplayObject._nImageHeight;
+
+        if (WGame.Renderer.isRetinaDisplay()) {
+            for (i = 1, len = arguments.length; i < len; i++) {
+                arguments[i] *= 2;
+            }
+
+            nImageWidth *= 2;
+            nImageHeight *= 2;
+        }
+
+        try {
+            oContext.drawImage(oSource, sx, sy, sw, sh, dx, dy, dw, dh);
+        } catch (e) {
+            throw new Error('invalid drawImage value : ' + sx + ',' + sy + ',' + sw + ',' + sh + ',' + dx + ',' + dy + ',' + dw + ',' + dh + ',' + this._oDisplayObject.getImage().src + ', original : ' + this._oDisplayObject.getImage().width + ',' + this._oDisplayObject.getImage().height + ',source : ' + oSource.width + ',' + oSource.height + ', isCached : ' + (this._elImageCached !== null ? 'true' : 'false'));
+        }
+    }
+
+    /**
+     * 
+     * @private
+     */
+    load() {
+        this._oLayer = this._oDisplayObject.getLayer();
+        this._oContext = this._oDisplayObject.getLayer().getContext();
+        this._bIsRetinaDisplay = WGame.Renderer.isRetinaDisplay();
+    }
+
+    /**
+     * 
+     * @private
+     */
+    unload() {
+        this._oLayer = null;
+        this._oContext = null;
+    }
+
+    draw(nFrameDuration, nX, nY, nLayerWidth, nLayerHeight, oContext) {
+        var bUseParentContext = oContext ? true : false;
+        oContext = oContext || this._oContext;
+        var oTargetContext = this._bUseCache ? this._oContextCache : oContext;
+        var oParentContext = oContext;
+        var htInfo = this._htInfo;
+        var htDirty = this._oDisplayObject.getDirty();
+        var htOrigin = this._oDisplayObject.getOrigin();
+        var nTargetWidth = htInfo.width;
+        var nTargetHeight = htInfo.height;
+        var nOriginX = htOrigin.x;
+        var nOriginY = htOrigin.y;
+        var nSavedX = nX;
+        var nSavedY = nY;
+        var nRatio = (this._bIsRetinaDisplay ? 2 : 1);
+        var nSavedXRatio = nX * nRatio;
+        var nSavedYRatio = nY * nRatio;
+        var nSavedOpacity = 0;
+        var bUseTransform = false;
+        var oTransformContext = oContext;
+
+        if (htInfo.useCache) {
+            oContext = this._oContextCache;
+        }
+
+        if (this._bIsRetinaDisplay) {
+            nX *= 2;
+            nY *= 2;
+            nOriginX *= 2;
+            nOriginY *= 2;
+            nTargetWidth *= 2;
+            nTargetHeight *= 2;
+        }
+
+        if (this._bUseCache || htInfo.scaleX !== 1 || htInfo.scaleY !== 1 || htInfo.angle !== 0 || htInfo.opacity !== 1) {
+            bUseTransform = true;
+
+            if (this._bUseCache) {
+                oTransformContext = !bUseParentContext ? this._oContext : oParentContext;
+            }
+
+            oTransformContext.save();
+            oTransformContext.translate(nX + nOriginX, nY + nOriginY);
+
+            if (htInfo.opacity !== 1) {
+                nSavedOpacity = oTransformContext.globalAlpha;
+                oTransformContext.globalAlpha = oTransformContext.globalAlpha === 0 ? htInfo.opacity : oTransformContext.globalAlpha * htInfo.opacity;
+            }
+
+            if (htInfo.angle !== 0) {
+                oTransformContext.rotate(WGame.util.toRad(htInfo.angle));
+            }
+
+            if (htInfo.scaleX !== 1 || htInfo.scaleY !== 1) {
+                oTransformContext.scale(htInfo.scaleX, htInfo.scaleY);
+            }
+
+            oTransformContext.translate(-nOriginX, -nOriginY);
+            nX = nY = 0;
+        }
+
+        this._htEvent.displayObject = this;
+        this._htEvent.context = oTargetContext;
+        this._htEvent.x = nX;
+        this._htEvent.y = nY;
+
+        if (!this._bUseCache || (this._oDisplayObject.isChanged() && !this._oDisplayObject.isChanged(true))) {
+            this.clearCache();
+
+            if (htInfo.backgroundColor) {
+                oTargetContext.fillStyle = htInfo.backgroundColor;
+                oTargetContext.fillRect(nX, nY, nTargetWidth, nTargetHeight);
+            }
+
+            if (this._oDisplayObject.getImage()) {
+                var elSourceImage = this._oDisplayObject.getImage();
+                var htImageSize = this._oDisplayObject.getImageSize();
+
+                if (htInfo.backgroundRepeat && htInfo.backgroundRepeat !== 'no-repeat') {
+                    var nCountWidth = (htInfo.backgroundRepeat === 'repeat' || htInfo.backgroundRepeat === 'repeat-x') ? Math.ceil(htInfo.width / htImageSize.width) : 1;
+                    var nCountHeight = (htInfo.backgroundRepeat === 'repeat' || htInfo.backgroundRepeat === 'repeat-y') ? Math.ceil(htInfo.height / htImageSize.height) : 1;
+
+                    if (nCountWidth > 0 || nCountHeight > 0) {
+                        for (var nLeftOffset = 0; nLeftOffset < nCountWidth; nLeftOffset++) {
+                            for (var nTopOffset = 0; nTopOffset < nCountHeight; nTopOffset++) {
+                                var nOffsetX = nLeftOffset * htImageSize.width + htImageSize.width;
+                                var nOffsetY = nTopOffset * htImageSize.height + htImageSize.height;
+                                var nPieceWidth = nOffsetX > htInfo.width ? htImageSize.width - (nOffsetX - htInfo.width) : htImageSize.width;
+                                var nPieceHeight = nOffsetY > htInfo.height ? htImageSize.height - (nOffsetY - htInfo.height) : htImageSize.height;
+
+                                this.drawImage(
+                                    oTargetContext,
+                                    0,
+                                    0,
+                                    nPieceWidth,
+                                    nPieceHeight,
+                                    (nX / nRatio) + nLeftOffset * htImageSize.width,
+                                    (nY / nRatio) + nTopOffset * htImageSize.height,
+                                    nPieceWidth,
+                                    nPieceHeight
+                                );
+                            }
+                        }
+                    }
+                } else {
+                    var nDrawingWidth = Math.min(htImageSize.width, htInfo.width);
+                    var nDrawingHeight = Math.min(htImageSize.height, htInfo.height);
+
+                    this.drawImage(
+                        oTargetContext,
+                        htInfo.offsetX,
+                        htInfo.offsetY,
+                        htInfo.fitImage ? htImageSize.width : nDrawingWidth,
+                        htInfo.fitImage ? htImageSize.height : nDrawingHeight,
+                        nX / nRatio, //TODO floating value 
+                        nY / nRatio,
+                        htInfo.fitImage ? htInfo.width : nDrawingWidth,
+                        htInfo.fitImage ? htInfo.height : nDrawingHeight
+                    );
+                }
+            }
+
+            if ("onCanvasDraw" in this._oDisplayObject) {
+                this._oDisplayObject.onCanvasDraw(this._htEvent);
+            }
+        }
+
+        if (htInfo.debugHitArea && htInfo.hitArea) {
+            if (this._oDebugHitArea === null) {
+                this._oDebugHitArea = new WGame.Polyline({
+                    x: 0,
+                    y: 0,
+                    width: htInfo.width,
+                    height: htInfo.height,
+                    strokeColor: htInfo.debugHitArea === true ? "yellow" : htInfo.debugHitArea,
+                    strokeWidth: 3
+                }).addTo(this._oDisplayObject);
+                this._oDebugHitArea.setPointData(htInfo.hitArea);
+            }
+        }
+
+        if (this._oDisplayObject.hasChild() && (!htInfo.useCache || (this._oDisplayObject.isChanged() && !this._oDisplayObject.isChanged(true)))) {
+            var aDisplayObjects = this._oDisplayObject.getChildren();
+
+            for (var i = 0, len = aDisplayObjects.length; i < len; i++) {
+                aDisplayObjects[i].update(
+                    nFrameDuration,
+                    // 0,
+                    // 0,
+                    htInfo.useCache || bUseTransform ? 0 : nSavedX, // 
+                    htInfo.useCache || bUseTransform ? 0 : nSavedY,
+                    nLayerWidth,
+                    nLayerHeight,
+                    bUseParentContext || htInfo.useCache ? oContext : null
+                );
+                aDisplayObjects[i].unsetChanged();
+                aDisplayObjects[i]._resetDirty();
+            }
+        }
+
+        if (htInfo.useCache) {
+            (bUseParentContext ? oParentContext : this._oContext).drawImage(oContext.canvas, 0, 0);
+        }
+
+        this._oLayer.drawCount++;
+
+        if (bUseTransform) {
+            oTransformContext.restore();
+        }
+    }
+}
+WGame.DisplayObjectCanvas = DisplayObjectCanvas;
+
+
 /**
  * 
  * @extends Component
@@ -1022,7 +1880,7 @@ class DisplayObject extends Component {
     }
     _makeDrawing() {
         if (this._oDrawing === null) {
-            this._oDrawing = this._sRenderingMode === "dom" ? new WGame.DisplayObjectDOM(this) : new WGame.DisplayObjectCanvas(this);
+            this._oDrawing = new WGame.DisplayObjectCanvas(this);
         }
     }
     getLayer() {
@@ -1676,9 +2534,9 @@ class LayerEvent {
         this._bAttached = true;
     }
 
-	/**
-	 * @private
-	 */
+    /**
+     * @private
+     */
     detachEvent() {
         var el = this._oLayer.getParent();
 
@@ -1868,11 +2726,11 @@ class LayerEvent {
     _bubbleEvent(oDisplayObject, sType, e, nX, nY, oCurrentObject) {
 
         if (oDisplayObject.fireEvent(sType, {
-            displayObject: oCurrentObject || oDisplayObject,
-            event: e,
-            x: nX,
-            y: nY
-        }) === false) {
+                displayObject: oCurrentObject || oDisplayObject,
+                event: e,
+                x: nX,
+                y: nY
+            }) === false) {
             return false;
         }
 
@@ -1885,8 +2743,7 @@ class LayerEvent {
 
 
     _isPointInDisplayObjectBoundary(oDisplayObject, nPointX, nPointY) {
-        if (
-            !oDisplayObject._htOption.useEvent ||
+        if (!oDisplayObject._htOption.useEvent ||
             !oDisplayObject._htOption.visible ||
             !oDisplayObject._htOption.width ||
             !oDisplayObject._htOption.height ||
@@ -2250,6 +3107,1800 @@ class Layer extends Component {
 }
 WGame.Layer = Layer;
 
+
+class SpriteSheet {
+    constructor() {
+        this._htSpriteSheet = {};
+    }
+    add(sImageName, vSpriteName, nOffsetX, nOffsetY, nWidth, nHeight, nSpriteLength) {
+        if (typeof vSpriteName === "object") {
+            if (vSpriteName instanceof Array) {
+                for (var i = 0, l = vSpriteName.length; i < l; i++) {
+                    this.add.apply(this, [sImageName, i].concat(vSpriteName[i]));
+                }
+            } else {
+                for (var i in vSpriteName) {
+                    this.add.apply(this, [sImageName, i].concat(vSpriteName[i]));
+                }
+            }
+        } else {
+            this._htSpriteSheet[sImageName] = this._htSpriteSheet[sImageName] || {};
+
+            if (typeof nWidth !== "undefined") {
+                WGame.ImageManager.getImage(sImageName, function (el) {
+                    this._addWithSpriteLength(el, sImageName, vSpriteName, nOffsetX, nOffsetY, nWidth, nHeight, nSpriteLength);
+                }.bind(this));
+            } else {
+                this._htSpriteSheet[sImageName][vSpriteName] = [nOffsetX, nOffsetY];
+            }
+        }
+    }
+
+    /**
+     * @private
+     */
+    _addWithSpriteLength(elImage, sImageName, sSpriteName, nOffsetX, nOffsetY, nWidth, nHeight, nSpriteLength) {
+        var aSpriteList = this._htSpriteSheet[sImageName][sSpriteName] = [];
+        var nImageWidth = elImage.width;
+        var nImageHeight = elImage.height;
+
+        if (WGame.Renderer.isRetinaDisplay()) {
+            nImageWidth /= 2;
+            nImageHeight /= 2;
+        }
+
+        var x = nOffsetX;
+        var y = nOffsetY;
+
+        for (i = 0; i < nSpriteLength; i++) {
+            if (x >= nImageWidth) {
+                x = 0;
+                y += nHeight;
+            }
+
+            if (y >= nImageHeight) {
+                break;
+            }
+
+            aSpriteList.push([x, y]);
+            x += nWidth;
+        }
+    }
+
+    remove(sImageName) {
+        if (this._htSpriteSheet[sImageName]) {
+            delete this._htSpriteSheet[sImageName];
+        }
+    }
+
+    get(sImageName) {
+        return this._htSpriteSheet[sImageName] ? this._htSpriteSheet[sImageName] : false;
+    }
+
+    reset() {
+        this._htSpriteSheet = {};
+    }
+
+}
+WGame.SpriteSheet = SpriteSheet;
+
+class ImageManager extends Component {
+    RETRY_COUNT = 3
+    RETRY_DELAY = 500
+    USE_PRERENDERING_DOM = false
+    constructor(props) {
+        super(props)
+        this._aImages = [];
+        this._htImageNames = {};
+        this._htImageRetryCount = {};
+        this._htImageWhileLoading = {};
+        this._nCount = 0;
+        this._oSpriteSheet = new WGame.SpriteSheet();
+    }
+    _addImage(elImage, sName) {
+        var nLength = this._aImages.push({
+            element: elImage,
+            name: sName
+        });
+
+        var aCallback = this._htImageNames[sName];
+        this._htImageNames[sName] = nLength - 1;
+        delete this._htImageRetryCount[sName];
+
+        // callback 
+        if (aCallback && aCallback instanceof Array) {
+            for (var i = 0, len = aCallback.length; i < len; i++) {
+                aCallback[i](elImage, sName);
+            }
+
+            aCallback = null;
+        }
+
+        this.fireEvent("process", {
+            name: sName,
+            url: elImage.src,
+            count: nLength,
+            total: this._nCount,
+            ratio: Math.round((nLength / this._nCount) * 1000) / 1000
+        });
+
+        if (this._nCount === nLength) {
+            this.fireEvent("complete");
+        }
+    }
+
+    _markImage(sName) {
+        if (!this._htImageNames[sName]) {
+            this._htImageNames[sName] = [];
+        }
+
+        if (!this._htImageRetryCount[sName]) {
+            this._htImageRetryCount[sName] = 0;
+        }
+    }
+
+    _makeHash() {
+        this._htImageNames = {};
+
+        for (var i = 0, len = this._aImages.length; i < len; i++) {
+            this._htImageNames[this._aImages[i].name] = i;
+        }
+    }
+
+    getImage(sName, fCallback) {
+        if (!sName && sName !== 0) {
+            return false;
+        }
+
+        if (!(sName in this._htImageNames)) {
+            this._markImage(sName);
+        }
+
+        if (this._htImageNames[sName] instanceof Array) {
+            return (fCallback && this._addMarkCallback(sName, fCallback));
+        } else {
+            if (fCallback) {
+                fCallback(this._aImages[this._htImageNames[sName]].element);
+            } else {
+                return this._aImages[this._htImageNames[sName]].element;
+            }
+        }
+    }
+
+    _addMarkCallback(sName, fCallback, fFail) {
+        if ((sName in this._htImageNames) && this._htImageNames[sName] instanceof Array) {
+            if (fFail) {
+                var fError = function fError(oEvent) {
+                    if (oEvent.name === sName) {
+                        fFail();
+                        this.detach("error", fError);
+                    }
+                };
+
+                this.attach("error", fError);
+            }
+
+            if (fCallback) {
+                this._htImageNames[sName].push(fCallback);
+            }
+
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    removeImage(sName) {
+        if (!(sName in this._htImageNames)) {
+            return false;
+        }
+
+        var elImage = this._aImages.splice(this._htImageNames[sName], 1);
+        this._makeHash();
+        elImage.onload = null;
+        elImage.onerror = null;
+        elImage.src = null;
+        elImage = null;
+        this._oSpriteSheet.remove(sName);
+    }
+
+    remove(sName) {
+        this.removeImage(sName);
+    }
+
+    add() {
+        if (typeof arguments[0] === "object") {
+            this.addImages.apply(this, arguments);
+        } else {
+            this.addImage.apply(this, arguments);
+        }
+    }
+
+    addImages(htList, fCallback, fFail) {
+        var fOnComplete = null;
+        var fOnFail = null;
+        var nTotalCount = 0;
+        var nCurrentCount = 0;
+        var aFailedImages = [];
+
+        // 
+        for (var i in htList) {
+            nTotalCount++;
+        }
+
+        // 
+        if (fCallback && fCallback !== null) {
+            fOnComplete = (function () {
+                nCurrentCount++;
+
+                if (nCurrentCount >= nTotalCount) {
+                    fCallback(htList);
+                }
+            }).bind(this);
+        }
+
+        // 
+        if (fFail && fFail !== null) {
+            fOnFail = (function (el, sName, sURL) {
+                aFailedImages.push([el, sName, sURL]);
+
+                if (aFailedImages.length + nCurrentCount >= nTotalCount) {
+                    fFail(aFailedImages);
+                }
+            }).bind(this);
+        }
+
+        for (var i in htList) {
+            this.addImage(i, htList[i], fOnComplete, fOnFail);
+        }
+    }
+
+    /**
+     * 
+     * 
+     * @param {String} sName 
+     * @param {String} sURL 
+     * @param {Function} fCallback 
+     * @param {HTMLElement} fCallback.elImage
+     * @param {String} fCallback.sName
+     * @param {String} fCallback.sURL 
+     * @param {Function} fFail 
+     */
+    addImage(sName, sURL, fCallback, fFail) {
+        if (this.getImage(sName)) {
+            if (fCallback && fCallback !== null) {
+                fCallback(this.getImage(sName), sName, sURL);
+            }
+            return;
+        }
+
+        if ((sName in this._htImageWhileLoading) && this._addMarkCallback(sName, fCallback, fFail)) {
+            return;
+        }
+
+        this._nCount++;
+        this._markImage(sName);
+        var el = new Image();
+
+        if (this.USE_PRERENDERING_DOM && WGame.Renderer.getRenderingMode() === "dom" && WGame.util.getSupportCSS3d() && !WGame.util.getDeviceInfo().android) {
+            el.style.webkitTransform = "translateZ(0)";
+            el.style.position = "absolute";
+            el.style.visibility = "hidden";
+            WGame.Renderer.getElement().appendChild(el);
+        }
+
+        this._htImageWhileLoading[sName] = el;
+
+        el.onload = (function (e) {
+            this._addImage(el, sName);
+
+            if (fCallback && fCallback !== null) {
+                fCallback(el, sName, sURL);
+            }
+
+            el.onerror = el.onload = null;
+            this._deleteWhileLoading(sName);
+        }).bind(this);
+
+        el.onerror = (function (e) {
+            if (this._htImageRetryCount[sName] < this.RETRY_COUNT) {
+                this._htImageRetryCount[sName]++;
+
+                this.fireEvent("retry", {
+                    count: this._aImages.length,
+                    total: this._nCount,
+                    name: sName,
+                    url: sURL,
+                    delay: this.RETRY_DELAY,
+                    retryCount: this._htImageRetryCount[sName]
+                });
+
+                setTimeout(function () {
+                    el.src = "about:blank";
+                    el.src = sURL;
+                }, this.RETRY_DELAY);
+                return;
+            }
+
+            if (fFail && fFail !== null) {
+                fFail(el, sName, sURL);
+            }
+
+            this.fireEvent("error", {
+                count: this._aImages.length,
+                total: this._nCount,
+                name: sName,
+                url: sURL
+            });
+
+            el.onerror = el.onload = null;
+            this._deleteWhileLoading(sName);
+        }).bind(this);
+
+        // el.crossOrigin = "";
+        el.src = sURL;
+    }
+
+    _deleteWhileLoading(sName) {
+        delete this._htImageWhileLoading[sName];
+    }
+
+    abort() {
+        for (var i in this._htImageWhileLoading) {
+            this._htImageWhileLoading[i].onload = this._htImageWhileLoading[i].onerror = null;
+            this._htImageWhileLoading[i].src = null;
+            this._htImageWhileLoading[i] = null;
+        }
+
+        this._htImageWhileLoading = {};
+        this._htImageStartedLoading = {};
+    }
+
+    reset() {
+        this.abort();
+        this._aImages = [];
+        this._htImageNames = {};
+        this._htImageRetryCount = {};
+        this._htImageWhileLoading = {};
+        this._nCount = 0;
+        this._oSpriteSheet.reset();
+    }
+
+    cancelGetImage(sName, fCallback) {
+        if (this._htImageNames[sName] instanceof Array) {
+            for (var i = 0, len = this._htImageNames[sName].length; i < len; i++) {
+                if (this._htImageNames[sName][i] === fCallback) {
+                    this._htImageNames[sName].splice(i, 1);
+                    return;
+                }
+            }
+        }
+    }
+
+
+    addSprite(sImageName, vSpriteName, nOffsetX, nOffsetY) {
+        this._oSpriteSheet.add(sImageName, vSpriteName, nOffsetX, nOffsetY);
+    }
+
+
+    getSprite(sImageName) {
+        return this._oSpriteSheet.get(sImageName);
+    }
+
+
+    removeSprite(sImageName) {
+        this._oSpriteSheet.remove(sImageName);
+    }
+}
+WGame.ImageManager = new ImageManager();
+
+class Animation extends Component {
+    constructor(fCallback, nDuration, htOption) {
+        super(htOption)
+        this._nId = ++WGame.Animation._idx;
+        this._bIsPlaying = false;
+        this._fCallback = fCallback;
+        this._oTimerList = null;
+
+        this.option("useAutoStart", true);
+        this.option((typeof nDuration === "object" ? nDuration : htOption) || {});
+        this.setDuration(nDuration);
+
+        this.setOptionEvent(htOption);
+    }
+    setOptionEvent(htOption) {
+        if (htOption) {
+            for (var i in htOption) {
+                if (i.toString().indexOf("on") === 0) {
+                    this.attach(i.toString().replace(/^on/, '').toLowerCase(), htOption[i]);
+                }
+            }
+        }
+    }
+
+    triggerCallback(htParam) {
+        if (typeof this._fCallback !== "function" && this._htOption.set) {
+            var htOption = {};
+
+            if (this._htOption.set instanceof Array) {
+                for (var i = 0, len = this._htOption.set.length; i < len; i++) {
+                    htOption[this._htOption.set[i]] = (htParam.value instanceof Array) ? htParam.value[i] : htParam.value;
+                }
+            } else {
+                htOption[this._htOption.set] = htParam.value;
+            }
+
+            if (this._fCallback instanceof Array) {
+                for (var j = 0, len = this._fCallback.length; j < len; j++) {
+                    this._fCallback[j].set(htOption);
+                }
+            } else {
+                this._fCallback.set(htOption);
+            }
+        } else if (this._fCallback) {
+            this._fCallback(htParam);
+        }
+    }
+    setDuration(nDuration) {
+        this._nDuration = parseInt(nDuration, 10);
+    }
+    getDuration() {
+        return this._nDuration;
+    }
+    setTimerList(oTimerList) {
+        this._oTimerList = oTimerList;
+
+        if (this._htOption.useAutoStart) {
+            this.start();
+        }
+    }
+    getId() {
+        return this._nId;
+    }
+    run(nCurrentFrame, nFrameDuration) {
+        throw new Error('abstract method');
+    }
+    reset() {
+        throw new Error('abstract method');
+    }
+    stop(bSkipEvent) {
+        if (this.isPlaying()) {
+            if (this._oTimerList !== null) {
+                this._oTimerList.remove(this);
+            }
+
+            this._bIsPlaying = false;
+            this.reset();
+
+
+            if (!bSkipEvent) {
+                this.fireEvent("stop");
+            }
+        }
+    }
+    pause() {
+        if (this.isPlaying()) {
+            this._bIsPlaying = false;
+
+            this.fireEvent("pause");
+
+            if (this._oTimerList !== null) {
+                this._oTimerList.remove(this);
+            }
+        }
+    }
+    start() {
+        if (!this.isPlaying()) {
+            this._bIsPlaying = true;
+
+            if (this._oTimerList !== null) {
+                this._oTimerList.add(this);
+            }
+
+            this.fireEvent("start");
+        }
+    }
+    isPlaying() {
+        return this._bIsPlaying;
+    }
+    complete() {
+        if (this.isPlaying()) {
+            if (this._fCallbackComplete) {
+                this._fCallbackComplete();
+            }
+
+            this.stop(true);
+
+            this.fireEvent("complete");
+        }
+    }
+}
+WGame.Animation = Animation;
+WGame.Animation._idx = 0;
+
+class AnimationTransition extends Animation {
+    constructor(fCallback, nDuration, htOption) {
+        super(fCallback, nDuration, htOption)
+        this.option({
+            from: null,
+            to: null,
+            set: "",
+            loop: 1,
+            effect: WGame.Effect.linear // 
+        });
+        this._htCallback = {};
+        this.option(htOption || {});
+        var fReset = this.reset.bind(this);
+        this.optionSetter("from", fReset);
+        this.optionSetter("to", fReset);
+        this._nCount = 0;
+        this._nCountCycle = 0;
+        this._nFrameAtRunLastest = null;
+        this._nRunningTime = null;
+        this._bIsArrayValue = false;
+    }
+    start() {
+        if (this._htOption.from === null && typeof this._fCallback !== "function") {
+            this._setDefaultFromValues();
+        }
+
+        if (this._nFrameAtRunLastest === null) {
+            this.reset();
+        }
+
+        this.constructor.$super.start.call(this);
+    }
+    _setDefaultFromValues() {
+        var vFrom = null;
+
+        if (this._htOption.set) {
+            if (this._htOption.set instanceof Array) {
+                vFrom = [];
+                for (var i = 0, len = this._htOption.set.length; i < len; i++) {
+                    vFrom.push(this._fCallback.get(this._htOption.set[i]));
+                }
+            } else {
+                vFrom = this._fCallback.get(this._htOption.set)
+            }
+
+            this.option("from", vFrom);
+        }
+    }
+    reset() {
+        this._nFrameAtRunLastest = null;
+        this._nRunningTime = null;
+        this._nValue = this._htOption.from;
+        this._bIsArrayValue = this._htOption.from instanceof Array;
+        this._nCount = 0;
+        this._nCountCycle = 0;
+
+        if (this._bIsArrayValue) {
+            this._fEffect = [];
+            var fEffect = null;
+
+            for (var i = 0, len = this._htOption.from.length; i < len; i++) {
+                fEffect = (this._htOption.effect instanceof Array) ? this._htOption.effect[i] : this._htOption.effect;
+                this._fEffect[i] = fEffect(this._htOption.from[i], this._htOption.to[i]);
+            }
+        } else {
+            this._fEffect = this._htOption.effect(this._htOption.from, this._htOption.to);
+        }
+    }
+    setValue(vValue) {
+        this._nValue = vValue;
+    }
+    getValue() {
+        return this._nValue;
+    }
+    run(nCurrentFrame, nFrameDuration) {
+        if (nCurrentFrame === undefined) {
+            nCurrentFrame = WGame.Renderer.getInfo().frame;
+        }
+
+        if (this._nFrameAtRunLastest > nCurrentFrame) {
+            this.reset();
+            return;
+        }
+
+        if (this._nFrameAtRunLastest === null) {
+            this._nFrameAtRunLastest = nCurrentFrame;
+            this._nRunningTime = 0;
+            nFrameDuration = 0;
+        }
+
+        this._nRunningTime += nFrameDuration;
+        this._nCount++;
+
+        if (this._nRunningTime >= this._nDuration) {
+            this._nCountCycle++;
+
+            if (!this._isEndValue() && this._htOption.loop && this._htOption.loop <= this._nCountCycle) {
+                this._setEndValue();
+            } else if (!this._htOption.loop || this._htOption.loop > this._nCountCycle) {
+
+                this.fireEvent("end");
+                this._nFrameAtRunLastest = nCurrentFrame;
+                this._nRunningTime = this._nRunningTime - this._nDuration; // 
+                this._nValue = this._htOption.from;
+                this._transitionValue(this._nRunningTime);
+            } else {
+
+                this.complete();
+                return;
+            }
+        } else if (this._nRunningTime > 0) {
+            this._transitionValue(this._nRunningTime);
+        }
+
+        this._htCallback.timer = this;
+        this._htCallback.frame = nCurrentFrame;
+        this._htCallback.duration = this._nDuration;
+        this._htCallback.cycle = this._nCountCycle;
+        this._htCallback.runningTime = this._nRunningTime;
+        this._htCallback.from = this._htOption.from;
+        this._htCallback.to = this._htOption.to;
+        this._htCallback.value = this._nValue; //
+        this.triggerCallback(this._htCallback);
+
+        if (this._nRunningTime > 0) {
+            this._nFrameAtRunLastest = nCurrentFrame;
+        }
+    }
+    _transitionValue(nCurrentRunningTime) {
+        if (this._bIsArrayValue) {
+            this._nValue = [];
+
+            for (var i = 0, len = this._htOption.from.length; i < len; i++) {
+                this._nValue[i] = parseFloat(this._fEffect[i](Math.max(0, Math.min(1, nCurrentRunningTime / this._nDuration))));
+            }
+        } else {
+            this._nValue = parseFloat(this._fEffect(Math.max(0, Math.min(1, nCurrentRunningTime / this._nDuration))));
+        }
+    }
+    _isEndValue() {
+        if (this._bIsArrayValue) {
+            for (var i = 0, len = this._htOption.to.length; i < len; i++) {
+                if (this._nValue[i] !== parseFloat(this._fEffect[i](1))) {
+                    return false;
+                }
+            }
+
+            return true;
+        } else {
+            return this._nValue === parseFloat(this._fEffect(1));
+        }
+    }
+    _setEndValue() {
+        if (this._bIsArrayValue) {
+            for (var i = 0, len = this._htOption.to.length; i < len; i++) {
+                this._nValue[i] = parseFloat(this._fEffect[i](1));
+            }
+        } else {
+            this._nValue = parseFloat(this._fEffect(1));
+        }
+    }
+}
+WGame.AnimationTransition = AnimationTransition;
+
+class AnimationRepeat extends Animation {
+    constructor(fCallback, nDuration, htOption) {
+        super(fCallback, nDuration, htOption)
+        this.option({
+            beforeDelay: 0,
+            afterDelay: 0,
+            loop: 0,
+            useRealTime: true
+        });
+        this.option(htOption || {});
+        this.reset();
+        this.setDuration(nDuration);
+        this._nFrameAtRunLastest = null;
+    }
+    setDuration(nDuration) {
+        nDuration = parseInt(nDuration, 10);
+
+        if (nDuration < WGame.Renderer.getDuration()) {
+            nDuration = WGame.Renderer.getDuration();
+        }
+
+        this._nDuration = nDuration;
+    }
+    reset() {
+        this._nCount = 0;
+        this._nFrameAtRunLastest = null;
+        this._nRunningTime = null;
+        this._nRunLastestTime = null;
+        this._nBeforeDelay = this._htOption.beforeDelay;
+    }
+    run(nCurrentFrame, nFrameDuration) {
+        if (nCurrentFrame === undefined) {
+            nCurrentFrame = WGame.Renderer.getInfo().frame;
+        }
+
+        if (this._nFrameAtRunLastest > nCurrentFrame) {
+            this.reset();
+            return;
+        }
+
+        if (this._nFrameAtRunLastest === null) {
+            this._nFrameAtRunLastest = nCurrentFrame;
+            this._nRunningTime = 0;
+            this._nRunLastestTime = 0;
+            nFrameDuration = 0;
+        }
+
+        this._nRunningTime += nFrameDuration;
+        var nSkippedCount = Math.max(1, Math.floor((this._nRunningTime - this._nRunLastestTime) / this._nDuration)) - 1;
+
+        if (this._nCount === 0 && this._nBeforeDelay) {
+            if (this._nRunLastestTime + this._nBeforeDelay <= this._nRunningTime) {
+                this.reset();
+                this._nBeforeDelay = 0;
+            }
+            return;
+        }
+
+        if (this._nRunningTime === 0 || this._nRunLastestTime + this._nDuration <= this._nRunningTime) {
+            this._nCount += this._htOption.useRealTime ? 1 + nSkippedCount : 1;
+            this._fCallback({
+                timer: this,
+                frame: nCurrentFrame,
+                duration: this._nDuration,
+                count: this._nCount,
+                skippedCount: nSkippedCount,
+                runningTime: this._nRunningTime
+            });
+
+            if (this._htOption.loop && this._htOption.loop <= this._nCount) {
+                this.complete();
+                return;
+            }
+
+            this._nFrameAtRunLastest = nCurrentFrame;
+            this._nRunLastestTime = this._nRunningTime;
+        }
+    }
+
+}
+WGame.AnimationRepeat = AnimationRepeat;
+
+class AnimationCycle extends Animation {
+    constructor(fCallback, nDuration, htOption) {
+        super(fCallback, nDuration, htOption)
+        this._nFPS = null;
+        this._htCallback = {};
+        var fSetterFPS = this._setterFPS.bind(this);
+        this.optionSetter("valueSet", this._setterValueSet.bind(this));
+        this.optionSetter("to", fSetterFPS);
+        this.optionSetter("from", fSetterFPS);
+        this.option({
+            delay: 0, //
+            from: 0, // 
+            to: 0, // 
+            step: 1, //
+            loop: 0, // 
+            set: "spriteX",
+            useRealTime: true,
+            valueSet: null,
+            start: null // 
+        });
+        this.option(htOption || {});
+        this._nFrameAtRunLastest = null;
+        this._nRunLastestTime = null;
+        this._nRunningTime = null;
+        this._nCountCycle = 0;
+        this._nCountCycleBefore = 0;
+        this.setDuration(nDuration);
+        this.reset();
+    }
+    reset() {
+        this._nCount = 0;
+        this._nCountCycle = 0;
+        this._nCountCycleBefore = 0;
+        this._nFrameAtRunLastest = null;
+        this._nRunningTime = null;
+        this._nRunLastestTime = null;
+        this._nValue = (this._htOption.start !== null ? this._htOption.start : this._htOption.from) - this._htOption.step;
+    }
+    _setterValueSet() {
+        var aValueSet = this._htOption.valueSet;
+
+        if (aValueSet && aValueSet instanceof Array) {
+            this.option({
+                from: 0,
+                to: aValueSet.length - 1,
+                step: 1
+            });
+        }
+    }
+    _setterFPS() {
+        if (this._nFPS !== null && typeof this._htOption.to !== "undefined" && typeof this._htOption.from !== "undefined") {
+            var nCount = (this._htOption.to - this._htOption.from) + 1;
+            this._nDuration = Math.round(1000 / this._nFPS * nCount);
+        }
+    }
+    setDuration(nDuration) {
+        this._nDuration = parseInt(nDuration, 10);
+
+        if (/fps/i.test(nDuration) && typeof this._htOption.to !== "undefined" && typeof this._htOption.from !== "undefined") {
+            this._nFPS = parseInt(nDuration, 10);
+            this._setterFPS();
+        } else {
+            this._nFPS = null;
+        }
+    }
+    setValue(vValue) {
+        this._nValue = vValue;
+    }
+    getValue() {
+        return this._htOption.valueSet ? this._htOption.valueSet[this._nValue] : this._nValue;
+    }
+
+    run(nCurrentFrame, nFrameDuration) {
+        if (typeof nCurrentFrame === "undefined") {
+            nCurrentFrame = WGame.Renderer.getInfo().frame;
+        }
+
+        if (this._nFrameAtRunLastest > nCurrentFrame) {
+            this.reset();
+            return;
+        }
+
+        if (this._nFrameAtRunLastest === null) {
+            this._nFrameAtRunLastest = nCurrentFrame;
+            this._nRunLastestTime = 0; // 
+            this._nRunningTime = 0;
+            nFrameDuration = 0; //
+        }
+
+        if (!nFrameDuration) {
+            nFrameDuration = 0;
+        }
+
+        var htOption = this._htOption;
+        var nDiff = htOption.to - htOption.from;
+        this._nTotalCount = nDiff / htOption.step; // 
+        this._nTerm = this._nDuration / this._nTotalCount; // 
+        this._nRunningTime += nFrameDuration; // x
+        var nSkippedCount = (!htOption.useRealTime) ? 0 : Math.max(1, Math.floor((this._nRunningTime - this._nRunLastestTime) / this._nTerm)) - 1;
+
+        if (this._nRunningTime === 0 || this._nRunLastestTime + this._nTerm <= this._nRunningTime) {
+            if (this._nCountCycleBefore !== this._nCountCycle) {
+
+                this.fireEvent("end");
+            }
+
+            if (htOption.loop && this._nCountCycle >= htOption.loop) {
+                this.complete();
+                return;
+            }
+
+            if (this._nValue === htOption.to) {
+                this._nValue = htOption.from - htOption.step;
+            }
+
+            this._nValue += (htOption.step * (1 + nSkippedCount));
+            this._nCount += (1 + nSkippedCount);
+            this._nCountCycleBefore = this._nCountCycle;
+
+            if (htOption.from <= htOption.to ? this._nValue >= htOption.to : this._nValue <= htOption.to) {
+                var nOverCount = (this._nValue - htOption.to) / htOption.step;
+                var nOverCountCycle = Math.ceil(nOverCount / (this._nTotalCount + 1)); // 
+                nOverCount = nOverCount % (this._nTotalCount + 1);
+
+                if (nOverCount) { // 
+                    this._nCountCycle += nOverCountCycle;
+                    this._nValue = htOption.from + (nOverCount - 1) * htOption.step;
+                } else { // 
+                    this._nCountCycle += 1;
+                    this._nValue = htOption.to;
+                }
+            }
+
+            this._htCallback.timer = this;
+            this._htCallback.frame = nCurrentFrame;
+            this._htCallback.duration = this._nDuration;
+            this._htCallback.count = this._nCount;
+            this._htCallback.skippedCount = nSkippedCount;
+            this._htCallback.runningTime = this._nRunningTime;
+            this._htCallback.value = this.getValue();
+            this._htCallback.cycle = this._nCountCycle;
+            this._htCallback.step = htOption.step;
+            this._htCallback.from = htOption.from;
+            this._htCallback.to = htOption.to;
+            this.triggerCallback(this._htCallback);
+
+            this._nFrameAtRunLastest = nCurrentFrame;
+            this._nRunLastestTime = this._nRunningTime;
+        }
+    }
+}
+WGame.AnimationCycle = AnimationCycle;
+
+class AnimationDelay extends Animation {
+    constructor(fCallback, nDuration) {
+        super(fCallback, nDuration)
+        this.reset();
+    }
+    reset() {
+        this._nFrameAtRunLastest = null;
+        this._nRunningTime = null;
+        this._nRunLastestTime = null;
+    }
+    run(nCurrentFrame, nFrameDuration) {
+        if (nCurrentFrame === undefined) {
+            nCurrentFrame = WGame.Renderer.getInfo().frame;
+        }
+
+        if (this._nFrameAtRunLastest > nCurrentFrame) {
+            this.reset();
+            return;
+        }
+
+        if (this._nFrameAtRunLastest === null) {
+            this._nFrameAtRunLastest = nCurrentFrame;
+            this._nRunLastestTime = 0;
+            this._nRunningTime = 0;
+            nFrameDuration = 0;
+        }
+
+        this._nRunningTime += nFrameDuration;
+
+        if (this._nRunLastestTime + this._nDuration <= this._nRunningTime) {
+            if (this._fCallback) {
+                this._fCallback({
+                    timer: this,
+                    frame: nCurrentFrame,
+                    duration: this._nDuration,
+                    runningTime: this._nRunningTime
+                });
+            }
+
+            this.complete();
+        }
+    }
+}
+WGame.AnimationDelay = AnimationDelay;
+
+class AnimationTimeline extends Animation {
+    constructor(fCallback, nDuration, htOption) {
+        super(fCallback, nDuration, htOption)
+        this.option("loop", 1);
+        this.option(htOption || {});
+        this.setOptionEvent(htOption);
+        this._htAnimations = {};
+        this._aTimeline = null;
+        this._aRunningAnimation = null;
+        this._nRunningTime = null;
+        this._nCountCycle = 0;
+
+        if (aTimeline) {
+            for (var i = 0, l = aTimeline.length; i < l; i++) {
+                this.addTimeline.apply(this, aTimeline[i]);
+            }
+        }
+
+        this.reset();
+    }
+
+    add(nStartTime, vType, fCallback, nDuration, htOption) {
+        var oAnimation;
+
+        switch (vType) {
+            case "delay":
+                oAnimation = new WGame.AnimationDelay(fCallback, nDuration, htOption);
+                break;
+
+            case "repeat":
+                oAnimation = new WGame.AnimationRepeat(fCallback, nDuration, htOption);
+                break;
+
+            case "transition":
+                oAnimation = new WGame.AnimationTransition(fCallback, nDuration, htOption);
+                break;
+
+            case "cycle":
+                oAnimation = new WGame.AnimationCycle(fCallback, nDuration, htOption);
+                break;
+
+            case "queue":
+                oAnimation = new WGame.AnimationQueue(fCallback /* htOption임 */ );
+                break;
+
+            default:
+                if (vType instanceof WGame.Animation) {
+                    oAnimation = vType;
+                } else {
+                    throw new Error(vType + ' timer is not defined');
+                }
+        }
+
+        this._addTimeline(nStartTime, oAnimation);
+        return oAnimation;
+    }
+    _addTimeline(nStartTime, oAnimation) {
+        nStartTime = parseInt(nStartTime, 10);
+        this._htAnimations[nStartTime] = this._htAnimations[nStartTime] || [];
+        this._htAnimations[nStartTime].push(oAnimation);
+
+        if (this._aTimeline !== null) {
+            this.reset();
+        }
+    }
+    remove(nStartTime, oTimer) {
+        nStartTime = parseInt(nStartTime, 10);
+
+        if (this._htAnimations && this._htAnimations[nStartTime]) {
+            for (var i = 0; i < this._htAnimations[nStartTime].length; i++) {
+                if (typeof oTimer === "undefined" || oTimer === this._htAnimations[nStartTime][i]) {
+                    this._htAnimations[nStartTime][i].stop();
+                    this._htAnimations[nStartTime].splice(i, 1);
+                    i--;
+
+                    if (typeof oTimer !== "undefined") {
+                        break;
+                    }
+                }
+            }
+
+            if (this._htAnimations[nStartTime].length < 1) {
+                delete this._htAnimations[nStartTime];
+                this._removeTimelineStartTime(nStartTime);
+            }
+        }
+    }
+    _removeTimelineStartTime(nStartTime) {
+        if (this._aTimeline) {
+            for (var i = 0, l = this._aTimeline.length; i < l; i++) {
+                if (this._aTimeline[i] === nStartTime) {
+                    this._aTimeline.splice(i, 1);
+                    break;
+                }
+            }
+        }
+    }
+    _initTimeline() {
+        this._aTimeline = [];
+        this._aRunningAnimation = [];
+
+        for (var i in this._htAnimations) {
+            this._aTimeline.push(parseInt(i, 10));
+        }
+
+        this._aTimeline.sort(function (a, b) {
+            return a - b;
+        });
+    }
+    getAnimation(nStartTime) {
+        nStartTime = parseInt(nStartTime, 10);
+        return (this._htAnimations && this._htAnimations[nStartTime]) ? this._htAnimations[nStartTime] : false;
+    }
+    getRunningTime() {
+        return this._nRunningTime || 0;
+    }
+    getCycle() {
+        return this._nCountCycle || 0;
+    }
+    reset() {
+        this._nFrameAtRunLastest = null;
+        this._nRunningTime = null;
+        this._aTimeline = null;
+        this._aRunningAnimation = null;
+        this._nCountCycle = 0;
+        this._initTimeline();
+    }
+    run(nCurrentFrame, nFrameDuration) {
+        if (nCurrentFrame === undefined) {
+            nCurrentFrame = WGame.Renderer.getInfo().frame;
+        }
+
+        if (this._nFrameAtRunLastest > nCurrentFrame) {
+            this.reset();
+            return;
+        }
+
+        if (this._nFrameAtRunLastest === null) {
+            this._nFrameAtRunLastest = nCurrentFrame;
+            this._nRunningTime = 0;
+            nFrameDuration = 0;
+        }
+
+        this._nRunningTime += nFrameDuration;
+
+        if (this._aTimeline.length > 0) {
+            while (this._aTimeline[0] <= this._nRunningTime) {
+                var nStartTime = this._aTimeline.shift();
+
+                for (var i = 0, l = this._htAnimations[nStartTime].length; i < l; i++) {
+                    this._aRunningAnimation.push(this._htAnimations[nStartTime][i]);
+                    this._htAnimations[nStartTime][i].start();
+                }
+            }
+        }
+
+        if (this._aRunningAnimation.length > 0) {
+            for (var i = 0; i < this._aRunningAnimation.length; i++) {
+                if (this._aRunningAnimation[i]) {
+                    this._aRunningAnimation[i].run(nCurrentFrame, nFrameDuration);
+                }
+
+                if (!this._aRunningAnimation[i] || !this._aRunningAnimation[i].isPlaying()) {
+                    if (this._aRunningAnimation[i]) {
+                        this._aRunningAnimation[i].reset();
+                    }
+
+                    this._aRunningAnimation.splice(i, 1);
+                    i--;
+                    this._checkComplete();
+                }
+            }
+        }
+    }
+    _checkComplete() {
+        if (this._aRunningAnimation.length < 1 && this._aTimeline.length < 1) {
+            this._nCountCycle++;
+
+            if (this._htOption.loop && this._htOption.loop <= this._nCountCycle) {
+
+                this.complete();
+            } else {
+
+                this.fireEvent("end");
+                this._nFrameAtRunLastest = null;
+                this._nRunningTime = null;
+                this._aTimeline = null;
+                this._aRunningAnimation = null;
+                this._initTimeline();
+            }
+        }
+    }
+}
+WGame.AnimationTimeline = AnimationTimeline;
+
+class AnimationQueue extends Animation {
+    constructor(htOption) {
+        super(null, null, htOption)
+        this.option("loop", 1);
+        this.option(htOption || {});
+        this.setOptionEvent(htOption);
+        this._aAnimations = [];
+        this._fOnCompleteAnimation = this._onCompleteAnimation.bind(this);
+        this.reset();
+    }
+    delay(fCallback, nDuration, htOption) {
+        this._add(new WGame.AnimationDelay(fCallback, nDuration, htOption));
+        return this;
+    }
+    repeat(fCallback, nDuration, htOption) {
+        this._add(new WGame.AnimationRepeat(fCallback, nDuration, htOption));
+        return this;
+    }
+    transition(fCallback, nDuration, htOption) {
+        this._add(new WGame.AnimationTransition(fCallback, nDuration, htOption));
+        return this;
+    }
+    cycle(fCallback, nDuration, htOption) {
+        this._add(new WGame.AnimationCycle(fCallback, nDuration, htOption));
+        return this;
+    }
+    getAnimation(nIdx) {
+        return this._aAnimations[nIdx] || false;
+    }
+    _add(oAnimation) {
+        oAnimation.attach("complete", this._fOnCompleteAnimation);
+        this._aAnimations.push(oAnimation);
+    }
+    _onCompleteAnimation() {
+        this.next();
+    }
+    next() {
+        if (this._nAnimationIdx === null) {
+            this._nAnimationIdx = 0;
+        } else {
+            this._nAnimationIdx++;
+        }
+
+        if (this._nAnimationIdx >= this._aAnimations.length) {
+            this._nCount++;
+
+            this.fireEvent("end", {
+                count: this._nCount
+            });
+
+            if (!this._htOption.loop || this._htOption.loop > this._nCount) {
+                this._nAnimationIdx = 0;
+            } else {
+
+                this.complete();
+                return;
+            }
+        }
+
+        this._aAnimations[this._nAnimationIdx].stop();
+        this._aAnimations[this._nAnimationIdx].start();
+    }
+    reset() {
+        this._nFrameAtRunLastest = null;
+        this._nAnimationIdx = null;
+        this._nCount = 0;
+    }
+    removeAll() {
+        this._aAnimations = [];
+        this.reset();
+    }
+    removeAfter() {
+        if (this._nAnimationIdx + 1 <= this._aAnimations.length - 1) {
+            var count = this._aAnimations.length - (this._nAnimationIdx + 1);
+            this._aAnimations.splice(this._nAnimationIdx + 1, count);
+        }
+    }
+    run(nCurrentFrame, nFrameDuration) {
+        if (this._aAnimations.length < 1) {
+            return;
+        }
+
+        if (nCurrentFrame === undefined) {
+            nCurrentFrame = WGame.Renderer.getInfo().frame;
+        }
+
+        if (this._nFrameAtRunLastest > nCurrentFrame) {
+            this.reset();
+            return;
+        }
+
+        if (this._nFrameAtRunLastest === null) {
+            this._nFrameAtRunLastest = nCurrentFrame;
+        }
+
+        if (this._nAnimationIdx === null) {
+            this.next();
+        }
+
+        this._aAnimations[this._nAnimationIdx].run(nCurrentFrame, nFrameDuration);
+    }
+}
+WGame.AnimationQueue = AnimationQueue;
+
+class TimerList {
+    constructor() {
+        this._aList = [];
+    }
+    add(oAnimation) {
+        this._aList.unshift(oAnimation);
+    }
+    remove(oAnimation) {
+        for (var i = 0, len = this._aList.length; i < len; i++) {
+            if (this._aList[i] === oAnimation) {
+                this._aList.splice(i, 1);
+                break;
+            }
+        }
+    }
+    removeAll() {
+        this._aList = [];
+    }
+    stopAll() {
+        for (var i = 0, len = this._aList.length; i < len; i++) {
+            this._aList[i].stop();
+        }
+    }
+    run(nCurrentFrame, nFrameDuration) {
+        for (var i = this._aList.length - 1; i >= 0; i--) {
+            if (this._aList[i]) {
+                if (this._aList[i].isPlaying()) {
+                    this._aList[i].run(nCurrentFrame, nFrameDuration);
+                } else {
+                    this._aList.splice(i, 1);
+                }
+            }
+        }
+    }
+}
+WGame.TimerList = TimerList;
+
+class Timer {
+    constructor() {
+        this._oList = new WGame.TimerList();
+    }
+    run(nCurrentFrame, nFrameDuration) {
+        this._oList.run(nCurrentFrame, nFrameDuration);
+    }
+    stopAll() {
+        this._oList.stopAll();
+    }
+    removeAll() {
+        this._oList.removeAll();
+    }
+    queue(htOption) {
+        var oAnimation = new WGame.AnimationQueue(htOption);
+        oAnimation.setTimerList(this._oList);
+        return oAnimation;
+    }
+    repeat(fCallback, nDuration, htOption) {
+        var oAnimation = new WGame.AnimationRepeat(fCallback, nDuration, htOption);
+        oAnimation.setTimerList(this._oList);
+        return oAnimation;
+    }
+    transition(fCallback, nDuration, htOption) {
+        var oAnimation = new WGame.AnimationTransition(fCallback, nDuration, htOption);
+        oAnimation.setTimerList(this._oList);
+        return oAnimation;
+    }
+    cycle(fCallback, nDuration, htOption) {
+        var oAnimation = new WGame.AnimationCycle(fCallback, nDuration, htOption);
+        oAnimation.setTimerList(this._oList);
+        return oAnimation;
+    }
+    delay(fCallback, nDuration, htOption) {
+        var oAnimation = new WGame.AnimationDelay(fCallback, nDuration, htOption);
+        oAnimation.setTimerList(this._oList);
+        return oAnimation;
+    }
+    timeline(aTimeline, htOption) {
+        var oAnimation = new WGame.AnimationTimeline(aTimeline, htOption);
+        oAnimation.setTimerList(this._oList);
+        return oAnimation;
+    }
+}
+WGame.Timer = new Timer();
+
+
+class Renderer extends Component {
+    DEFAULT_FPS = "60fps"
+    RETINA_DISPLAY = false
+    DEBUG_USE_DELAY = false
+    DEBUG_MAX_DELAY = 200
+    DEBUG_RENDERING_MODE = "auto"
+
+    constructor(props) {
+        super(props)
+        this._sVisibilityChange = this._getNamePageVisibility();
+        this._bPlaying = false;
+        this._bPause = false;
+        this._nFPS = 0;
+        this._nDuration = 0; // ms
+        this._nCurrentFrame = 0;
+        this._nSkippedFrame = 0;
+        this._nBeforeFrameTime = null; // ms
+        this._nBeforeRenderingTime = 0; // ms
+        this._aLayerList = [];
+        this._fRender = this._render.bind(this);
+        this._fCallback = null;
+        this._htCallback = {};
+        this._elContainer = document.createElement("div");
+        this._elContainer.className = "_WGame_container";
+        this._elContainer.style.position = "relative";
+        this._elContainer.style.overflow = "hidden";
+        this._elParent = null;
+        this._nDebugDelayedTime = 0;
+        this._oRenderingTimer = null;
+        this._bLoaded = false;
+        this._sRenderingMode = null;
+        this._bUseRetinaDisplay = null;
+        this._htEventStatus = {};
+        this._htPosition = {};
+        this._bIsPreventDefault = true;
+        this._htDeviceInfo = WGame.util.getDeviceInfo();
+
+        // PageVisibility API
+        if (this._sVisibilityChange) {
+            WGame.util.addEventListener(document, this._sVisibilityChange, this._onChangeVisibility.bind(this));
+        } else if (!this._htDeviceInfo.desktop) {
+            WGame.util.addEventListener(window, "pageshow", this._onPageShow.bind(this));
+            WGame.util.addEventListener(window, "pagehide", this._onPageHide.bind(this));
+        }
+
+        WGame.util.addEventListener(window, "resize", this.refresh.bind(this));
+    }
+    _onPageShow() {
+        if (!this.isPlaying() && this._bPause) {
+            this.resume();
+        }
+    }
+
+    _onPageHide() {
+        if (this.isPlaying()) {
+            this.pause();
+        }
+    }
+
+    _onChangeVisibility() {
+        var state = document.visibilityState || document.webkitVisibilityState || document.mozVisibilityState;
+
+        if (state === "hidden") {
+            this.pause();
+        } else if (state === "visible") {
+            this.resume();
+        }
+    }
+
+    refresh() {
+        if (this._elParent !== null) {
+            this._htPosition = WGame.util.getPosition(this._elParent);
+        }
+    }
+
+    getPosition() {
+        return this._bLoaded ? this._htPosition : false;
+    }
+
+    addLayer(oLayer) {
+        if (!oLayer || !("type" in oLayer) || oLayer.type !== "layer") {
+            throw new Error('oLayer is not Layer instnace');
+        }
+
+        for (var i = 0, len = this._aLayerList.length; i < len; i++) {
+            if (this._aLayerList[i] === oLayer) {
+                return;
+            }
+        }
+
+        this._aLayerList.push(oLayer);
+
+        if (this._bLoaded) {
+            oLayer.load(this._elContainer, this._aLayerList.length);
+            this.resetLayerEvent();
+        }
+    }
+
+    removeLayer(oLayer) {
+        for (var i = 0, len = this._aLayerList.length; i < len; i++) {
+            if (this._aLayerList[i] === oLayer) {
+                this._aLayerList[i].unload(); // 
+                this._aLayerList.splice(i, 1);
+                return;
+            }
+        }
+    }
+
+    removeAllLayer() {
+        for (var i = this._aLayerList.length - 1; i >= 0; i--) {
+            this._aLayerList[i].unload();
+        }
+
+        this._aLayerList = [];
+    }
+
+    getLayers() {
+        return this._aLayerList;
+    }
+
+    resetLayerEvent() {
+        for (var i = 0, len = this._aLayerList.length; i < len; i++) {
+            this._aLayerList[i].detachEvent();
+        }
+
+        for (var i = this._aLayerList.length - 1; i >= 0; i--) {
+            this._aLayerList[i].attachEvent();
+        }
+    }
+
+    getElement() {
+        return this._elContainer;
+    }
+
+    getDuration() {
+        return this._nDuration;
+    }
+
+    getInfo() {
+        this._htCallback.frame = this._nCurrentFrame;
+        this._htCallback.skippedFrame = this._nSkippedFrame;
+        this._htCallback.fps = this._nFPS;
+        this._htCallback.duration = this._nDuration;
+        this._htCallback.renderingTime = this._nBeforeRenderingTime;
+        this._htCallback.beforeFrameTime = this._nBeforeFrameTime;
+        return this._htCallback;
+    }
+
+    getRenderingMode() {
+        if (this._sRenderingMode === null) {
+            var htDeviceInfo = WGame.util.getDeviceInfo();
+            this._sRenderingMode = this.DEBUG_RENDERING_MODE;
+
+            if (!this._sRenderingMode || this._sRenderingMode === "auto") {
+                if (
+                    (
+                        htDeviceInfo.android && !htDeviceInfo.chrome && (
+                            (htDeviceInfo.android < 4.2 && htDeviceInfo.android >= 3) ||
+                            htDeviceInfo.android < 2.2
+                        )
+                    ) ||
+                    !htDeviceInfo.supportCanvas ||
+                    (htDeviceInfo.ios && htDeviceInfo.ios < 5)
+                ) {
+                    this._sRenderingMode = "dom";
+                } else {
+                    this._sRenderingMode = "canvas";
+                }
+            }
+
+            if (!htDeviceInfo.supportCanvas) {
+                this._sRenderingMode = "dom";
+            }
+        }
+
+        return this._sRenderingMode;
+    }
+
+    setRenderingMode(sMode) {
+        this.DEBUG_RENDERING_MODE = sMode.toString().toLowerCase();
+        this._sRenderingMode = null;
+    }
+
+    isRetinaDisplay() {
+        if (this._bUseRetinaDisplay === null) {
+            this._bUseRetinaDisplay = this.RETINA_DISPLAY !== "auto" ? this.RETINA_DISPLAY : window.devicePixelRatio >= 2 && (!WGame.util.getDeviceInfo().android || WGame.util.getDeviceInfo().android >= 4);
+            var htDeviceInfo = WGame.util.getDeviceInfo();
+
+            if (htDeviceInfo.ie && htDeviceInfo.ie < 9) {
+                this._bUseRetinaDisplay = false;
+            }
+        }
+
+        return this._bUseRetinaDisplay;
+    }
+
+    setRetinaDisplay(vMode) {
+        this.RETINA_DISPLAY = vMode;
+        this._bUseRetinaDisplay = null;
+    }
+
+    _getNameAnimationFrame(bCancelName) {
+        if (typeof window.requestAnimationFrame !== "undefined") {
+            return bCancelName ? "cancelAnimationFrame" : "requestAnimationFrame";
+        } else if (typeof window.webkitRequestAnimationFrame !== "undefined") {
+            return bCancelName ? "webkitCancelAnimationFrame" : "webkitRequestAnimationFrame";
+        } else if (typeof window.msRequestAnimationFrame !== "undefined") {
+            return bCancelName ? "msCancelAnimationFrame" : "msRequestAnimationFrame";
+        } else if (typeof window.mozRequestAnimationFrame !== "undefined") {
+            return bCancelName ? "mozCancelAnimationFrame" : "mozRequestAnimationFrame";
+        } else if (typeof window.oRequestAnimationFrame !== "undefined") {
+            return bCancelName ? "oCancelAnimationFrame" : "oRequestAnimationFrame";
+        } else {
+            return false;
+        }
+    }
+
+    _getNamePageVisibility() {
+        if ("hidden" in document) {
+            return "visibilitychange";
+        } else if ("webkitHidden" in document) {
+            return "webkitvisibilitychange";
+        } else if ("mozHidden" in document) {
+            return "mozvisibilitychange";
+        } else {
+            return false;
+        }
+    }
+
+    load(elParent) {
+        this.unload();
+        this._bLoaded = true;
+        this._elParent = elParent;
+        this._elParent.appendChild(this._elContainer);
+        this.refresh();
+
+        if (this._aLayerList.length) {
+            for (var i = 0, len = this._aLayerList.length; i < len; i++) {
+                this._aLayerList[i].load(this._elContainer, i);
+            }
+
+            for (var i = this._aLayerList.length - 1; i >= 0; i--) {
+                this._aLayerList[i].attachEvent();
+            }
+        }
+
+    }
+
+    unload() {
+        if (this._bLoaded) {
+            for (var i = 0, len = this._aLayerList.length; i < len; i++) {
+                this._aLayerList[i].unload();
+            }
+
+            this._elParent.removeChild(this._elContainer);
+            this._elParent = null;
+            this._bLoaded = false;
+        }
+    }
+
+
+    start(vDuration, fCallback) {
+        if (!this._bPlaying) {
+            // this.stop();
+            vDuration = vDuration || this.DEFAULT_FPS;
+            this._nDuration = (/fps$/i.test(vDuration)) ? 1000 / parseInt(vDuration, 10) : Math.max(16, vDuration);
+            this._fCallback = fCallback || null;
+            this._bPlaying = true;
+
+            if (this._nDuration < 17) {
+                this._sRequestAnimationFrameName = this._getNameAnimationFrame();
+                this._sCancelAnimationFrameName = this._getNameAnimationFrame(true);
+            } else {
+                this._sRequestAnimationFrameName = false;
+                this._sCancelAnimationFrameName = false;
+            }
+
+            this.fireEvent("start");
+            this._trigger(0);
+        }
+
+    }
+
+    _trigger(nDelay) {
+        if (!this._sVisibilityChange) {
+            if (window.screenTop < -30000) {
+                this.pause();
+            }
+        }
+
+        if (typeof nDelay === "undefined") {
+            nDelay = 0;
+        } else {
+            nDelay = parseInt(nDelay, 10);
+        }
+
+        if (this._sRequestAnimationFrameName !== false && !this.DEBUG_USE_DELAY) {
+            this._oRenderingTimer = window[this._sRequestAnimationFrameName](this._fRender);
+        } else {
+            this._oRenderingTimer = setTimeout(this._fRender, nDelay);
+        }
+    }
+
+    _render(nSkippedFrame, bForcePlay) {
+        if (!this._bPlaying && !bForcePlay) {
+            return;
+        }
+
+        var nTime = this._getDate();
+        var nRealDuration = 0;
+        var nFrameStep = 1; // 
+
+        if (this._nBeforeFrameTime !== null) {
+            nRealDuration = nTime - this._nBeforeFrameTime; //
+            nFrameStep = nSkippedFrame || Math.max(1, Math.round(nRealDuration / this._nDuration));
+
+            if (this._sRequestAnimationFrameName !== false) {
+                nSkippedFrame = 0;
+                nFrameStep = 1;
+            }
+
+            this._nSkippedFrame += Math.max(0, nFrameStep - 1);
+            this._nFPS = Math.round(1000 / (nTime - this._nBeforeFrameTime));
+        }
+
+        this._nCurrentFrame += nFrameStep;
+        var htInfo = this.getInfo();
+
+        if ((this._fCallback === null || this._fCallback(htInfo) !== false) && this.fireEvent("process", htInfo) !== false) {
+            WGame.Timer.run(this._nCurrentFrame, nRealDuration);
+            this._update(nRealDuration);
+            var nDebugDelayedTime = 0;
+
+            if (this.DEBUG_USE_DELAY) {
+                nDebugDelayedTime = Math.round(Math.random() * this.DEBUG_MAX_DELAY);
+                this._nDebugDelayedTime += nDebugDelayedTime;
+            }
+
+            this._nBeforeRenderingTime = this._getDate() - nTime;
+            this._nBeforeFrameTime = nTime;
+
+            if (this._bPlaying) {
+                this._trigger(Math.max(0, this._nDuration - this._nBeforeRenderingTime + nDebugDelayedTime * 2));
+            }
+        } else {
+            this.stop();
+        }
+    }
+
+    draw(nSkippedFrame) {
+        this._fRender(nSkippedFrame, true);
+    }
+
+    _getDate() {
+        return (+new Date()) + (this.DEBUG_USE_DELAY ? this._nDebugDelayedTime : 0);
+    }
+
+    stop() {
+        if (this._bPlaying) {
+            this._bPlaying = false;
+            this._resetTimer();
+
+            this.fireEvent("stop", this.getInfo());
+
+            this._sRenderingMode = null;
+            this._bUseRetinaDisplay = null;
+            this._fCallback = null;
+            this._nCurrentFrame = 0;
+            this._nBeforeRenderingTime = 0;
+            this._nSkippedFrame = 0;
+            this._nBeforeFrameTime = null;
+        }
+    }
+
+    _resetTimer() {
+        if (this._oRenderingTimer !== null) {
+            if (this._sCancelAnimationFrameName !== false) {
+                window[this._sCancelAnimationFrameName](this._oRenderingTimer);
+            } else {
+                clearTimeout(this._oRenderingTimer);
+            }
+
+            //TODO debug			
+            window.tempTimer = window.tempTimer || [];
+            window.tempTimer.push(this._oRenderingTimer);
+            this._oRenderingTimer = null;
+        }
+    }
+
+    pause() {
+        if (this._bPlaying) {
+            this._bPlaying = false;
+            this._bPause = true;
+
+            this.fireEvent("pause", this.getInfo());
+
+            this._resetTimer();
+        }
+    }
+
+    resume() {
+        if (this._bPause) {
+            this._nBeforeFrameTime = this._getDate();
+            this._nBeforeRenderingTime = 0;
+            this._bPlaying = true;
+            this._bPause = false;
+
+            this.fireEvent("resume", this.getInfo());
+            this._trigger(0);
+        }
+    }
+
+    isPlaying() {
+        return this._bPlaying;
+    }
+
+    _update(nFrameDuration) {
+        for (var i = 0, len = this._aLayerList.length; i < len; i++) {
+            this._aLayerList[i].update(nFrameDuration);
+        }
+    }
+
+    setEventStatus(sEventType, bFiredOnTarget) {
+        this._htEventStatus = {
+            type: sEventType,
+            firedOnTarget: bFiredOnTarget
+        };
+    }
+
+    isStopEvent(sEventType) {
+        if (sEventType === "click") {
+            sEventType = "mouseup";
+        }
+
+        return sEventType === this._htEventStatus.type && this._htEventStatus.firedOnTarget;
+    }
+
+    getEventStatus() {
+        return this._htEventStatus;
+    }
+
+    setPreventDefault(bPreventDefault) {
+        this._bIsPreventDefault = !!bPreventDefault;
+    }
+
+    isPreventDefault() {
+        return this._bIsPreventDefault;
+    }
+
+    resize(nWidth, nHeight, bExpand) {
+        for (var i = 0, len = this._aLayerList.length; i < len; i++) {
+            this._aLayerList[i].resize(nWidth, nHeight, bExpand);
+        }
+    }
+}
+WGame.Renderer = new Renderer();
 
 
 export default WGame;

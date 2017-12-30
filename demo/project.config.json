@@ -11,6 +11,7 @@
 	"libVersion": "game",
 	"appid": "touristappid",
 	"projectname": "%E5%BE%AE%E4%BF%A1%E5%BC%95%E6%93%8E",
+	"isGameTourist": true,
 	"condition": {
 		"search": {
 			"current": -1,
@@ -28,6 +29,5 @@
 			"current": -1,
 			"list": []
 		}
-	},
-	"isGameTourist": true
+	}
 }
