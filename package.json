@@ -1,0 +1,15 @@
+{
+  "name": "wechat-game",
+  "version": "1.0.0",
+  "description": "微信小游戏开发引擎。基于canvas的2D渲染方式。简单易操作。",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://gitee.com/cuo9958/wechat-game.git"
+  },
+  "author": "",
+  "license": "MIT"
+}
