@@ -3,6 +3,7 @@
 
 ## demo
 
+![](https://gitee.com/cuo9958/wechat-game/raw/master/dist/weixin.png)
 ```
 //添加图片资源
 wgame.ImageManager.add({
