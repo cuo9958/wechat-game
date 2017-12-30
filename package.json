@@ -4,12 +4,23 @@
   "description": "微信小游戏开发引擎。基于canvas的2D渲染方式。简单易操作。",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "gulp build"
   },
   "repository": {
     "type": "git",
     "url": "https://gitee.com/cuo9958/wechat-game.git"
   },
-  "author": "",
-  "license": "MIT"
+  "author": {
+    "name": "疯狂紫萧",
+    "email": "545570335@qq.com"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-plumber": "^1.1.0",
+    "gulp-rename": "^1.2.2",
+    "gulp-typescript": "^3.2.3",
+    "gulp-uglify": "^3.0.0",
+    "typescript": "^2.6.2"
+  }
 }
