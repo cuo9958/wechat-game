@@ -1,20 +1,19 @@
-import './js/libs/weapp-adapter'
-import './js/libs/symbol'
+// import './js/libs/weapp-adapter'
+// import './js/libs/symbol'
 
-import Main from './js/main'
+// import Main from './js/main'
 
 // new Main()
 
 import wgame from './wgame.js'
-console.log(wgame)
 wgame.ImageManager.add({
-  "logo": "http://jindo.dev.naver.com/collie/img/small/logo.png"
+  "logo": "./images/hero.png"
 });
 
 
 var layer=new wgame.Layer({
-  width:100,
-  height:100
+  width:200,
+  height:200
 })
 console.log(layer)
 

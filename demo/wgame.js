@@ -102,56 +102,7 @@ class util {
 
         return this._htDeviceInfo;
     }
-    getCSSPrefix(sName, bJavascript) {
-        var sResult = '';
 
-        if (this._sCSSPrefix === null) {
-            this._sCSSPrefix = '';
-
-            if (typeof document.body.style.webkitTransform !== "undefined") {
-                this._sCSSPrefix = "-webkit-";
-            } else if (typeof document.body.style.MozTransform !== "undefined") {
-                this._sCSSPrefix = "-moz-";
-            } else if (typeof document.body.style.OTransform !== "undefined") {
-                this._sCSSPrefix = "-o-";
-            } else if (typeof document.body.style.msTransform !== "undefined") {
-                this._sCSSPrefix = "-ms-";
-            }
-        }
-
-        sResult = this._sCSSPrefix + (sName ? sName : '');
-
-        if (bJavascript) {
-            var aTmp = sResult.split("-");
-            sResult = '';
-
-            for (var i = 0, len = aTmp.length; i < len; i++) {
-                if (aTmp[i]) {
-                    sResult += sResult ? aTmp[i].substr(0, 1).toUpperCase() + aTmp[i].substr(1) : aTmp[i];
-                }
-            }
-
-            if (this._sCSSPrefix === "-moz-" || this._sCSSPrefix === "-o-") {
-                sResult = sResult.substr(0, 1).toUpperCase() + sResult.substr(1);
-            }
-        }
-
-        return sResult;
-    }
-    getSupportCSS3() {
-        if (this._bSupportCSS3 === null) {
-            this._bSupportCSS3 = typeof document.body.style[WGame.util.getCSSPrefix("transform", true)] !== "undefined" || typeof document.body.style.transform != "undefined";
-        }
-
-        return this._bSupportCSS3;
-    }
-    getSupportCSS3d() {
-        if (this._bSupport3d === null) {
-            this._bSupport3d = (typeof document.body.style[WGame.util.getCSSPrefix("perspective", true)] !== "undefined" || typeof document.body.style.perspective != "undefined") && (!WGame.util.getDeviceInfo().android || WGame.util.getDeviceInfo().android >= 4);
-        }
-
-        return this._bSupport3d;
-    }
     toRad(nDeg) {
         return nDeg * Math.PI / 180;
     }
@@ -1497,6 +1448,7 @@ class DisplayObject extends Component {
 
         this.set(this._htOption);
         this._bIsSetOption = true;
+
     }
     /**
      * 设置
@@ -1753,6 +1705,7 @@ class DisplayObject extends Component {
      * @param {*} vImage 
      */
     setImage(vImage) {
+
         if (typeof vImage === "string" || !vImage) {
             if (this._htGetImageData !== null && this._htGetImageData.name !== vImage) {
                 WGame.ImageManager.cancelGetImage(this._htGetImageData.name, this._htGetImageData.callback);
@@ -1776,12 +1729,11 @@ class DisplayObject extends Component {
             return;
         }
 
-        // 같은 이미지면 적용하지 않음
         if (this._elImage && this._elImage === vImage) {
             return;
         }
 
-        // reflow 예방을 위한 이미지 크기 캐시
+        // reflow 
         this._elImage = vImage;
         this._nImageWidth = vImage.width;
         this._nImageHeight = vImage.height;
@@ -1823,7 +1775,7 @@ class DisplayObject extends Component {
         this._bChangedTransforms = true;
 
         if (this._oParent) {
-            this._oParent.setChanged(false); // transforms만 바꼈어도 부모에게는 전체가 바뀐것으로 통보
+            this._oParent.setChanged(false); // transforms
         }
     }
     unsetChanged() {
@@ -1905,7 +1857,7 @@ class DisplayObject extends Component {
     update(nFrameDuration, nX, nY, nLayerWidth, nLayerHeight, oContext) {
         this._updateMovableOption(nFrameDuration);
 
-        if (this._sRenderingMode === "canvas" && !this._htOption.visible) {
+        if (!this._htOption.visible) {
             this.unsetChanged();
             return;
         }
@@ -1914,14 +1866,11 @@ class DisplayObject extends Component {
         nY += this._htOption.y;
 
         if (
-            (this._sRenderingMode === "dom" && this.isChanged()) || (
-                this._sRenderingMode === "canvas" && (
-                    nX + this._htOption.width >= 0 ||
-                    nX <= nLayerWidth ||
-                    nY + this._htOption.height >= 0 ||
-                    nY <= nLayerHeight
-                )
-            )) {
+            nX + this._htOption.width >= 0 ||
+            nX <= nLayerWidth ||
+            nY + this._htOption.height >= 0 ||
+            nY <= nLayerHeight
+        ) {
             this._oDrawing.draw(nFrameDuration, nX, nY, nLayerWidth, nLayerHeight, oContext);
         }
 
@@ -2273,6 +2222,7 @@ class DisplayObject extends Component {
         }
     }
     _setSpritePosition(sKey, nValue) {
+
         if (this._elImage && nValue !== null) {
             if (this._htOption.spriteSheet !== null) {
                 var sheet = this._htSpriteSheet[this._htOption.spriteSheet];
@@ -2430,31 +2380,17 @@ class LayerCanvas {
         this._initCanvas();
     }
     _initCanvas() {
-        var htSize = this._getLayerSize();
         this._elCanvas = wx.createCanvas();
-        this._elCanvas.width = htSize.width;
-        this._elCanvas.height = htSize.height;
-        this._elCanvas.className = "_WGame_layer";
-        this._elCanvas.style.position = "absolute";
-        this._elCanvas.style.left = this._oLayer.option("x") + "px";
-        this._elCanvas.style.top = this._oLayer.option("y") + "px";
-
-        if (WGame.Renderer.isRetinaDisplay()) {
-            this._elCanvas.style.width = (htSize.width / 2) + "px";
-            this._elCanvas.style.height = (htSize.height / 2) + "px";
-        }
-
+        var htSize = this._getLayerSize(this._elCanvas.width, this._elCanvas.height);
         this._oContext = this._elCanvas.getContext('2d');
     }
     _getLayerSize(nWidth, nHeight) {
-        nWidth = nWidth || this._oLayer.option("width");
-        nHeight = nHeight || this._oLayer.option("height");
-
+        nWidth = nWidth;
+        nHeight = nHeight;
         if (WGame.Renderer.isRetinaDisplay()) {
             nWidth *= 2;
             nHeight *= 2;
         }
-
         return {
             width: nWidth,
             height: nHeight
@@ -2479,23 +2415,12 @@ class LayerCanvas {
         var htSize = this._getLayerSize(nWidth, nHeight);
 
         if (bExpand) {
-            this._elCanvas.style.width = nWidth + "px";
-            this._elCanvas.style.height = nHeight + "px";
             var nRatioWidth = nWidth / this._oLayer.option("width");
             var nRatioHeight = nHeight / this._oLayer.option("height");
             this._oEvent.setEventRatio(nRatioWidth, nRatioHeight);
         } else {
-            var nCanvasWidth = typeof nWidth === 'number' ? htSize.width : this._elCanvas.width;
-            var nCanvasHeight = typeof nHeight === 'number' ? htSize.height : this._elCanvas.height;
             this.clear(this._oContext);
             this._oLayer.setChanged();
-            this._elCanvas.width = nCanvasWidth;
-            this._elCanvas.height = nCanvasHeight;
-
-            if (WGame.Renderer.isRetinaDisplay()) {
-                this._elCanvas.style.width = nCanvasWidth / 2 + "px";
-                this._elCanvas.style.height = nCanvasHeight / 2 + "px";
-            }
         }
     }
 }
@@ -2856,10 +2781,6 @@ class Layer extends Component {
 
         this._renderingMode = this._htOption.renderingMode;
 
-        if (this._renderingMode === "canvas" && !WGame.util.getDeviceInfo().supportCanvas) {
-            this._renderingMode = "dom";
-        }
-
         this.drawCount = 0; // 
         this.optionSetter("visible", this._setVisible.bind(this)); // 
         this._elParent = null;
@@ -2892,7 +2813,6 @@ class Layer extends Component {
         this._elParent = this._elParent || elParent;
         this._elParent.style.width = Math.max(parseInt(this._elParent.style.width || 0, 10), this.option("width")) + "px";
         this._elParent.style.height = Math.max(parseInt(this._elParent.style.height || 0, 10), this.option("height")) + "px";
-        this.getElement().style.zIndex = nZIndex;
 
         if (this._sAlignLeft !== null) {
             this.offset(this._sAlignLeft, null, true);
@@ -2901,7 +2821,6 @@ class Layer extends Component {
         if (this._sAlignTop !== null) {
             this.offset(null, this._sAlignTop, true);
         }
-
         this._elParent.appendChild(this.getElement());
     }
     unload() {
@@ -2992,7 +2911,6 @@ class Layer extends Component {
     }
     update(nFrameDuration) {
         this.drawCount = 0;
-
         if (!this.isChanged() || this.option("freeze")) {
             return;
         }
@@ -3113,6 +3031,7 @@ class SpriteSheet {
         this._htSpriteSheet = {};
     }
     add(sImageName, vSpriteName, nOffsetX, nOffsetY, nWidth, nHeight, nSpriteLength) {
+
         if (typeof vSpriteName === "object") {
             if (vSpriteName instanceof Array) {
                 for (var i = 0, l = vSpriteName.length; i < l; i++) {
@@ -3323,7 +3242,6 @@ class ImageManager extends Component {
         var nCurrentCount = 0;
         var aFailedImages = [];
 
-        // 
         for (var i in htList) {
             nTotalCount++;
         }
@@ -3380,14 +3298,7 @@ class ImageManager extends Component {
 
         this._nCount++;
         this._markImage(sName);
-        var el = new Image();
-
-        if (this.USE_PRERENDERING_DOM && WGame.Renderer.getRenderingMode() === "dom" && WGame.util.getSupportCSS3d() && !WGame.util.getDeviceInfo().android) {
-            el.style.webkitTransform = "translateZ(0)";
-            el.style.position = "absolute";
-            el.style.visibility = "hidden";
-            WGame.Renderer.getElement().appendChild(el);
-        }
+        var el = wx.createImage();
 
         this._htImageWhileLoading[sName] = el;
 
@@ -4450,11 +4361,9 @@ class Renderer extends Component {
     RETINA_DISPLAY = false
     DEBUG_USE_DELAY = false
     DEBUG_MAX_DELAY = 200
-    DEBUG_RENDERING_MODE = "auto"
 
     constructor(props) {
         super(props)
-        this._sVisibilityChange = this._getNamePageVisibility();
         this._bPlaying = false;
         this._bPause = false;
         this._nFPS = 0;
@@ -4468,9 +4377,6 @@ class Renderer extends Component {
         this._fCallback = null;
         this._htCallback = {};
         this._elContainer = document.createElement("div");
-        this._elContainer.className = "_WGame_container";
-        this._elContainer.style.position = "relative";
-        this._elContainer.style.overflow = "hidden";
         this._elParent = null;
         this._nDebugDelayedTime = 0;
         this._oRenderingTimer = null;
@@ -4482,36 +4388,6 @@ class Renderer extends Component {
         this._bIsPreventDefault = true;
         this._htDeviceInfo = WGame.util.getDeviceInfo();
 
-        // PageVisibility API
-        if (this._sVisibilityChange) {
-            WGame.util.addEventListener(document, this._sVisibilityChange, this._onChangeVisibility.bind(this));
-        } else if (!this._htDeviceInfo.desktop) {
-            WGame.util.addEventListener(window, "pageshow", this._onPageShow.bind(this));
-            WGame.util.addEventListener(window, "pagehide", this._onPageHide.bind(this));
-        }
-
-        WGame.util.addEventListener(window, "resize", this.refresh.bind(this));
-    }
-    _onPageShow() {
-        if (!this.isPlaying() && this._bPause) {
-            this.resume();
-        }
-    }
-
-    _onPageHide() {
-        if (this.isPlaying()) {
-            this.pause();
-        }
-    }
-
-    _onChangeVisibility() {
-        var state = document.visibilityState || document.webkitVisibilityState || document.mozVisibilityState;
-
-        if (state === "hidden") {
-            this.pause();
-        } else if (state === "visible") {
-            this.resume();
-        }
     }
 
     refresh() {
@@ -4596,35 +4472,13 @@ class Renderer extends Component {
     getRenderingMode() {
         if (this._sRenderingMode === null) {
             var htDeviceInfo = WGame.util.getDeviceInfo();
-            this._sRenderingMode = this.DEBUG_RENDERING_MODE;
-
-            if (!this._sRenderingMode || this._sRenderingMode === "auto") {
-                if (
-                    (
-                        htDeviceInfo.android && !htDeviceInfo.chrome && (
-                            (htDeviceInfo.android < 4.2 && htDeviceInfo.android >= 3) ||
-                            htDeviceInfo.android < 2.2
-                        )
-                    ) ||
-                    !htDeviceInfo.supportCanvas ||
-                    (htDeviceInfo.ios && htDeviceInfo.ios < 5)
-                ) {
-                    this._sRenderingMode = "dom";
-                } else {
-                    this._sRenderingMode = "canvas";
-                }
-            }
-
-            if (!htDeviceInfo.supportCanvas) {
-                this._sRenderingMode = "dom";
-            }
+            this._sRenderingMode = "canvas";
         }
 
         return this._sRenderingMode;
     }
 
     setRenderingMode(sMode) {
-        this.DEBUG_RENDERING_MODE = sMode.toString().toLowerCase();
         this._sRenderingMode = null;
     }
 
@@ -4662,17 +4516,6 @@ class Renderer extends Component {
         }
     }
 
-    _getNamePageVisibility() {
-        if ("hidden" in document) {
-            return "visibilitychange";
-        } else if ("webkitHidden" in document) {
-            return "webkitvisibilitychange";
-        } else if ("mozHidden" in document) {
-            return "mozvisibilitychange";
-        } else {
-            return false;
-        }
-    }
 
     load(elParent) {
         this.unload();
@@ -4708,7 +4551,6 @@ class Renderer extends Component {
 
     start(vDuration, fCallback) {
         if (!this._bPlaying) {
-            // this.stop();
             vDuration = vDuration || this.DEFAULT_FPS;
             this._nDuration = (/fps$/i.test(vDuration)) ? 1000 / parseInt(vDuration, 10) : Math.max(16, vDuration);
             this._fCallback = fCallback || null;
@@ -4729,11 +4571,6 @@ class Renderer extends Component {
     }
 
     _trigger(nDelay) {
-        if (!this._sVisibilityChange) {
-            if (window.screenTop < -30000) {
-                this.pause();
-            }
-        }
 
         if (typeof nDelay === "undefined") {
             nDelay = 0;
